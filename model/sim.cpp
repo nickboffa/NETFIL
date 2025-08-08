@@ -1,4 +1,5 @@
 #include <math.h>
+#include <sstream>
 #include "network.h"
 #include "mda.h"
 
