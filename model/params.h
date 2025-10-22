@@ -41,12 +41,20 @@ using namespace std;
        
 #define start_year                  2010 //model starting year
 
-#define commuting_prop              0.5 //proportion of group that commut daily (over 5 years old)
+#define commuting_prop              0.5 //proportion of group that commute daily (over 5 years old)
 #define DailyProbLoseAntigen        0.992327946   //set so the half-life is 90 days i.e. pow(0.5,1/90)
 
 #define ABC_fitting                 false
 
 #define run_off_fitted              false
+
+// --- Non-compliance controls ---
+#define USE_NONCOMPLIANCE 0              // 0=off, 1=on
+#define PERSISTENT_NONCOMPLIANCE 1       // 1=persistent never-takers; 0=draw each round
+#define NONADH_AGPOS 0.35                // Pr(not treated | antigen-positive)
+#define NONADH_AGNEG 0.22                // Pr(not treated | antigen-negative)
+
+
 
 double random_real();
 double normal(double mean, double stddev);

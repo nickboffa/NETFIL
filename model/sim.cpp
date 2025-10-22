@@ -15,10 +15,10 @@ void region::sim(int year, mda_strat strat){
         init_prev = 0;
         init_ratio  = 0;
         while(((init_prev < init_prev_min) || (init_prev > init_prev_max)) || ((init_ratio < init_ratio_min) || (init_ratio > init_ratio_max))){
-            
+
             seed_lf();
         }
-        
+
         cout << "Init prev: " << init_prev << "%" << endl;
         cout << "MF to Ant: " << init_ratio << endl;
         
@@ -58,7 +58,14 @@ void region::sim(int year, mda_strat strat){
             if ((day % 91 == 0) && (!ABC_fitting) && (day != 364)){
                 output_epidemics(year, day, strat); 
             }
-                
+
+            if (day == 363) std::cout << "Finished year " << (year + start_year)
+                          << "  pop=" << rpop
+                          << "  I=" << inf_indiv.size()
+                          << "  E=" << pre_indiv.size()
+                          << "  U=" << uninf_indiv.size()
+                          << "  S=" << no_worms_indiv.size()
+                          << std::endl;
         }
     }
 }
@@ -250,7 +257,7 @@ void region::seed_lf(){
         int n_infected = uninf_indiv.size() + pre_indiv.size();
 
         if(init_other_shuffle <  n_infected){
-            init_inf_shuffle = n_infected; 
+            init_other_shuffle = n_infected;  // actual important change!?
             cout << "Warning trying to shuffle less values than there are other infected persons" << endl;
             cout << "Setting to shuffle to least possible" <<endl;
         }

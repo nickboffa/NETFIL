@@ -1,7 +1,7 @@
 #include "network.h"
 
 //radiation model for daily trips between villages
-//radiaiton model from "A universal model for mobility and migration patterns" by Simini et al.
+//radiaton model from "A universal model for mobility and migration patterns" by Simini et al.
 void region::radt_model(char m){
     
     //deciding which distance we want to use as basis for rad model

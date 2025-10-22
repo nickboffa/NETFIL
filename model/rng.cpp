@@ -12,3 +12,7 @@ void warmup() {
 }
 
 int dummy = (warmup(), 0);
+
+void reseed_rng(unsigned int seed){
+    gen.seed(seed);
+}

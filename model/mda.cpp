@@ -25,6 +25,7 @@ int count_mda_scenarios(string file){
 }
 
 mda_strat get_mda_strat(string filename, int N)
+
 {
     ifstream in;
     

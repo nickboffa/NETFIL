@@ -1,48 +1,130 @@
 #include "network.h"
+#include "params.h"   // for USE_NONCOMPLIANCE, NONADH_* etc.
+#include "agent.h"    // for agent::is_antigen_positive()
+#include "rng.h"
 #include <stdio.h>
 #include <cstdlib>
 #include <algorithm>
+#include <unordered_set>
 
 void region::implement_MDA(int year, mda_strat strat){
     int n_pop = 0;
     int n_treated = 0;
     int n_under_min = 0;
 
-    for(map<int, group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //for every group
-        
+    // --- Pass 1: count population and under-min-age individuals ---
+    for (auto j = groups.begin(); j != groups.end(); ++j) {
         group *grp = j->second;
-        
         n_pop += grp->group_pop.size();
-        
-        for(map<int, agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //for all people 
-            
-            double age = k->second->age/365.0; // agents age!
 
-            if(age<strat.min_age) ++n_under_min; 
-
+        for (auto k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k) {
+            double age = k->second->age / 365.0;
+            if (age < strat.min_age) ++n_under_min;
         }
     }
 
-    double target_prop = 1 - n_under_min /(double)n_pop;
+    double target_prop = 1 - n_under_min / (double)n_pop;
 
-    for(map<int, group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //for every group
-        
+    // --- Pass 2: apply MDA with non-compliance ---
+    for (auto j = groups.begin(); j != groups.end(); ++j) {
         group *grp = j->second;
-        
-        for(map<int, agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //for all people 
-            
-            double age = k->second->age/365.0; // agents age!
-            if(age > strat.min_age){
-                if(random_real() <= strat.Coverage/(double)target_prop){
-                    ++n_treated;
-                    k->second->mda(strat.drug);
-                }
+
+        for (auto k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k) {
+            agent *a = k->second;
+            double age = a->age / 365.0;
+            if (age <= strat.min_age) continue;
+
+            // Coverage selection (programmatic target)
+            if (random_real() > strat.Coverage / (double)target_prop) continue;
+
+#if USE_NONCOMPLIANCE
+            // --- Non-compliance module (persistent or per-round) ---
+            bool agpos = a->is_antigen_positive(); // helper in agent.h
+            double pr_nonadh = agpos ? NONADH_AGPOS : NONADH_AGNEG;
+            bool refuse_this_round = false;
+
+    #if PERSISTENT_NONCOMPLIANCE
+            if (!a->mda_profile_init) {
+                a->mda_never_taker = (random_real() < pr_nonadh);
+                a->mda_profile_init = true;
             }
+            refuse_this_round = a->mda_never_taker;
+    #else
+            refuse_this_round = (random_real() < pr_nonadh);
+    #endif
+
+            if (refuse_this_round) continue;
+#endif
+
+            // --- If reached, agent is treated ---
+            ++n_treated;
+            a->mda(strat.drug);
         }
     }
 
     number_treated[year] = n_treated;
-    achieved_coverage[year] = n_treated/(double)n_pop;
+    achieved_coverage[year] = n_treated / (double)n_pop;
+
+    std::cout << "[MDA] Year " << (year + start_year)
+              << " treated=" << n_treated
+              << " achieved=" << std::fixed << std::setprecision(3)
+              << achieved_coverage[year]
+              << (PERSISTENT_NONCOMPLIANCE ? " (persistent)\n" : " (per-round)\n");
+}
+
+void region::implement_MDA_subset(int year, mda_strat strat, const std::vector<int>& target_gids) {
+    // If no list given, fallback to full-pop MDA
+    if (target_gids.empty()) return implement_MDA(year, strat);
+
+    std::unordered_set<int> allow(target_gids.begin(), target_gids.end());
+    int n_pop = 0, n_under_min = 0, n_treated = 0;
+
+    // Count eligible in target groups only
+    for (auto &jk : groups) {
+        if (!allow.count(jk.first)) continue;
+        group* grp = jk.second;
+        n_pop += (int)grp->group_pop.size();
+        for (auto &kv : grp->group_pop) {
+            double age = kv.second->age / 365.0;
+            if (age < strat.min_age) ++n_under_min;
+        }
+    }
+    if (n_pop == 0) return;
+
+    double target_prop = 1.0 - (n_under_min / (double)n_pop);
+
+    // Treat only inside target groups
+    for (auto &jk : groups) {
+        if (!allow.count(jk.first)) continue;
+        group* grp = jk.second;
+
+        for (auto &kv : grp->group_pop) {
+            agent *a = kv.second;
+            double age = a->age / 365.0;
+            if (age <= strat.min_age) continue;
+
+            if (random_real() > strat.Coverage / (double)target_prop) continue;
+
+        #if USE_NONCOMPLIANCE
+            bool agpos = a->is_antigen_positive();
+            double pr_nonadh = agpos ? NONADH_AGPOS : NONADH_AGNEG;
+            bool refuse = false;
+            #if PERSISTENT_NONCOMPLIANCE
+                if (!a->mda_profile_init) { a->mda_never_taker = (random_real() < pr_nonadh); a->mda_profile_init = true; }
+                refuse = a->mda_never_taker;
+            #else
+                refuse = (random_real() < pr_nonadh);
+            #endif
+            if (refuse) continue;
+        #endif
+
+            ++n_treated;
+            a->mda(strat.drug);
+        }
+    }
+
+    number_treated[year] += n_treated;        // accumulate within-year
+    achieved_coverage[year] += n_treated / (double)rpop; // coarse region-level fraction
 }
 
 void region::handl_commute(int year){
@@ -183,6 +265,71 @@ void region::calc_risk(){
             }
         }
     }
+}
+
+double region::mf_prev_region() const {
+    // proportion infectious at time of call; convert to %
+    if (rpop <= 0) return 0.0;
+    return 100.0 * (double)inf_indiv.size() / (double)rpop;
+}
+
+std::map<int,double> region::mf_prev_by_group() const {
+    std::map<int,double> out;
+    for (auto &gkv : groups) {
+        const group* g = gkv.second;
+        double n = (double)g->group_pop.size();
+        if (n <= 0) { out[gkv.first] = 0.0; continue; }
+        // Count infectious in group
+        int infc = 0;
+        for (auto &kv : g->group_pop) {
+            const agent* a = kv.second;
+            if (a->status == 'I') ++infc;
+        }
+        out[gkv.first] = 100.0 * infc / n;
+    }
+    return out;
+}
+
+double region::tas_estimate_antigen_15plus(const std::vector<int>& target_gids,
+                                           int sample_size,
+                                           int current_year) const {
+    std::unordered_set<int> allow(target_gids.begin(), target_gids.end());
+    std::vector<const agent*> frame;
+    frame.reserve(4000);
+
+    // Build sampling frame: adults 15+ in chosen areas
+    for (auto &gkv : groups) {
+        if (!allow.empty() && !allow.count(gkv.first)) continue;
+        const group* g = gkv.second;
+        for (auto &kv : g->group_pop) {
+            const agent* a = kv.second;
+            int years = a->age / 365;
+            if (years >= 15) frame.push_back(a);
+        }
+    }
+    if (frame.empty()) return 0.0;
+
+    // Sample without replacement
+    std::vector<int> idx(frame.size());
+    std::iota(idx.begin(), idx.end(), 0);
+    shuffle(idx.begin(), idx.end(), gen); // 'gen' from rng.h / rng.cpp
+    int n = std::min<int>(sample_size, (int)frame.size());
+
+    // Antigen-positive proxy: I or U OR lingering antigen (DailyProbLoseAntigen)
+    int pos = 0;
+    for (int i = 0; i < n; ++i) {
+        const agent* a = frame[idx[i]];
+        bool agpos = (a->status == 'I' || a->status == 'U');
+        if (!agpos) {
+            double days_since_last_mature = current_year * 365.0 - a->lastwormtime;
+            if (days_since_last_mature > 0) {
+                agpos = (random_real() < pow(DailyProbLoseAntigen, days_since_last_mature));
+            }
+        }
+        if (agpos) ++pos;
+    }
+
+    return 100.0 * (double)pos / (double)n;
 }
 
 double region::mf_functional_form(char form, double worm_strength){

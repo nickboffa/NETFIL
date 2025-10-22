@@ -81,6 +81,17 @@ public:
     double age_dist[n_age_groups];     //container for the age distribution
     int age_dist_lower[n_age_groups];
     int age_dist_upper[n_age_groups];
+
+    // Annual MF prevalence (%) for region and by group (computed at "epi snapshot" moments)
+    double mf_prev_region() const;
+    std::map<int,double> mf_prev_by_group() const;
+
+    // TAS-style estimate: sample adults (15+) and measure *antigen* positivity.
+    // `current_year` is the 0-based sim year (same as used in output code).
+    double tas_estimate_antigen_15plus(const std::vector<int>& target_gids,
+                                    int sample_size,
+                                    int current_year) const;
+                                    
     //used to keep track of total population for easy analysis
     map<int, agent*> pre_indiv;        //collection of immautre worms individuals
     map<int, agent*> inf_indiv;        //collection ofinfectious individuals
@@ -131,7 +142,9 @@ public:
     double mf_functional_form(char form, double worm_strength);            //converts worm strength to mf load
 
     void implement_MDA(int year, mda_strat strat);           //MDA!
-    
+    // Run MDA but only in the specified groups (by gid). If empty, apply to all groups.
+    void implement_MDA_subset(int year, mda_strat strat, const std::vector<int>& target_gids);
+
     bool pop_reload();
     void read_groups();                                 //read input data
     void bld_groups();                                  //build the model groups 

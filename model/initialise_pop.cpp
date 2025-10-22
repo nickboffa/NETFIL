@@ -174,7 +174,7 @@ void region::read_groups(){
         break;
     }
     int ii = 0;
-    
+        
     while(getline(in, line)){
         age_dist[ii] = atof(line.c_str());
         ii++;
@@ -582,50 +582,68 @@ void region::read_parameters(){
     immature_and_ant = init_ianda;
 }
 
-void region::reset_population(){
-   
-    //resetting population
+void region::reset_population() {
+    // 1) Clear infection indexes
     pre_indiv.clear();
     inf_indiv.clear();
     uninf_indiv.clear();
     no_worms_indiv.clear();
-    for(map<int, group*>::iterator j = groups.begin();  j != groups.end(); ++j){ //iterating through groups
-        delete j->second;
+    for (int i = 0; i < n_age_groups; ++i) pvec[i].clear();
+
+    // 2) Delete all agents but keep group shells (avoids leaking)
+    for (auto &gkv : groups) {
+        group* grp = gkv.second;
+        for (auto it = grp->group_pop.begin(); it != grp->group_pop.end(); ++it) {
+            delete it->second;
+        }
+        grp->group_pop.clear();
+        grp->day_population.clear();
+        grp->commuting_pop.clear();
+        grp->commuting_cumsum.clear();
     }
-    groups.clear();
 
-    for(map<int, double*>::iterator j = group_coords.begin();  j != group_coords.end(); ++j){ //iterating through groups
-        delete [] j->second;
-    }
-    group_coords.clear();
-
-    for(int i = 0; i < n_age_groups; ++i){
-        pvec[i].clear();
-    }
-    group_names.clear();
-    group_numbers.clear();
-
-    group_pops.clear();
-    
-    delete[] road_dst;
-    delete[] euclid_dst;
-    euclid_dst = nullptr;
-    road_dst = nullptr;
-
+    // 3) Reset counters but keep topology
     rpop = 0;
-    next_aid = 1;
-    next_gid = 1;
-    group_blocks = 0;
+    next_aid = 1;  // restart agent IDs for the new sim
+    // next_gid and group_blocks remain as-is if topology unchanged
 
-    if(!pop_reload()){
-        cout << "reload pop err" << endl;
-        exit(1);
+    // 4) Try to reload cached pop; if not available or empty, rebuild from ../data
+    bool ok = pop_reload();
+
+    size_t agents = 0;
+    for (auto &gkv : groups) agents += gkv.second->group_pop.size();
+
+    if (!ok || agents == 0) {
+        // If groups/coords are missing (because an earlier run used the “old” reset that deleted them),
+        // or pop_reload didn't hydrate agents, rebuild topology + agents from data.
+        group_names.clear(); group_numbers.clear();
+        for (auto &ckv : group_coords) delete[] ckv.second;
+        group_coords.clear();
+
+        // If road/euclid exist for a previous topology, drop them to avoid stale distances.
+        delete[] road_dst; road_dst = nullptr;
+        delete[] euclid_dst; euclid_dst = nullptr;
+
+        group_pops.clear();
+        next_gid = 1;
+        group_blocks = 0;
+
+        read_groups();           // fills group_names, group_pops, group_coords, rpop (from CSVs)
+        bld_groups();            // rebuild group objects (keys/IDs derived from names/coords)
+        bld_region_population(); // create agents per group
+
+        // Recompute rpop from group_pops (source of truth)
+        rpop = 0;
+        for (auto &gp : group_pops) rpop += gp.second;
+    } else {
+        // Reload succeeded; recompute rpop from actual loaded agents (more precise during sims)
+        for (auto &gkv : groups) rpop += (int)gkv.second->group_pop.size();
     }
-    
-    read_parameters();
-    
 
+    // 5) Refresh scalar parameters (birth/mortality/exposure, roads if needed)
+    read_parameters();
 }
+
 
 void region::reset_prev(){
     //now need to clera worms from people

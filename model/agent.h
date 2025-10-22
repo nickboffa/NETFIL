@@ -64,6 +64,18 @@ public:
     void update(int day, int year, int dt);
     void mda(drugs drug);
 
+    // --- MDA adherence state (per person) ---
+    bool mda_never_taker = false;   // persistent non-complier flag
+    bool mda_profile_init = false;  // set after first evaluation
+
+    // Antigen proxy at time of MDA. If you track explicit antigen elsewhere, use that instead.
+    bool is_antigen_positive() const {
+        // Approx: anyone with mature worms (I or U) is antigen-positive.
+        // (Swap to a stricter check if you model residual antigen explicitly here.)
+        return (status == 'I' || status == 'U');
+    }
+
+
 };
 
 #endif /* agent_hpp */
