@@ -79,8 +79,8 @@ int main(int argc, const char * argv[]) {
     };
 
     // Grids (per your update)
-    const double P_MDA_LIST[]   = {0.5, 0.6, 0.7, 0.8}; // percent thresholds
-    const double COVERED_LIST[] = {0.60, 0.70, 0.80};   // MDA coverage (0–1)
+    const double P_MDA_LIST[]   = {0.1, 0.5, 1}; // percent thresholds
+    const double COVERED_LIST[] = {0.50, 0.65, 0.80};   // MDA coverage (0–1)
     const int    Y_TAS_LIST[]   = {2, 3};               // TAS cadence (years)
 
     for (int scenario_count = 0; scenario_count < MDAScenario_count; ++scenario_count) {
