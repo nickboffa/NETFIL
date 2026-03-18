@@ -1,2 +1,2 @@
-rm -f ../$config/ABC.init
-rm -f ../$config/pop/* 2>/dev/null
+rm ../\$config/ABC.init
+rm ../\$config/pop/*
