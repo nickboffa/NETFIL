@@ -147,18 +147,33 @@ void region::read_groups(){
     ifstream in;
     string line, file;
    
-    //firstly reading in group names! 
-    file = datadir; file = file + group_name;
+    file = datadir; file = file + group_data;
     in.open(file.c_str());
 
-    getline(in, line); //header
+    getline(in, line);          //skip header
 
-     while(getline(in, line)){
-        if(group_names.find(line) == group_names.end()){
-            group_names.insert(pair<string, int>(line, next_gid));
-            group_numbers.insert(pair<int, string>(next_gid++, line));
-            
+    while(getline(in, line)){
+        char* str = new char[line.size()+1];
+        std::strcpy(str, line.c_str());
+        
+        char* p = std::strtok(str, ",");      string name = p;
+        p = std::strtok(NULL, ",");     int pop = atoi(p);
+        p = std::strtok(NULL, ",");     double lat = atof(p);
+        p = std::strtok(NULL, ",");     double log = atof(p);
+       
+        group_names.insert(pair<string, int>(name, next_gid));
+        group_numbers.insert(pair<int, string>(next_gid, name));
+
+        if (pop == 0){
+            cout << "Warning!!!!!! 0 population" << endl;
         }
+
+        group_pops.insert(pair<int, int>(next_gid, pop));
+
+        double *r = new double[2];
+        r[0] = lat;     r[1] = log;
+        group_coords.insert(pair<int, double*>(next_gid++, r));
+        delete []str;
     }
     in.close();
     
@@ -180,65 +195,6 @@ void region::read_groups(){
         ii++;
     }
     in.close();
-
-    char *str;
-    char *p = NULL;
-
-    //reading in village populations
-    file = datadir;    file = file + group_populations;
-    in.open(file.c_str());
-    
-    getline(in, line);          //skip header
-
-    while(getline(in,line)){
-        str = new char[line.size()+1];
-        std::strcpy(str, line.c_str());
-        p = std::strtok(str, ",");  //village name may have space
-        
-        //deal with gender record
-        int gid = group_names[p];
-        
-        int pop = 0;
-
-        p = std::strtok(NULL, ", ");    pop = atoi(p);
-        if (pop == 0){
-            cout << "Warning!!!!!!" << endl;
-        }
-        group_pops.insert(pair<int, int>(gid, pop));
-    
-        delete []str;
-    }
-    in.close();
-
-    //now reading in village locations
-    file = datadir;     file = file + group_locations;
-    in.open(file.c_str());
-    
-    getline(in, line); //header
-    
-    while(getline(in, line)){
-        str = new char[line.size()+1];
-        std::strcpy(str, line.c_str());
-        
-        p = std::strtok(str, ",");  //village name may have space
-        map<string, int>::iterator k = group_names.find(p);
-        if(k == group_names.end()) continue;
-        
-        int mid = k->second;
-        p = std::strtok(NULL, ",");     double lat = atof(p);
-        p = std::strtok(NULL, ",");     double log = atof(p);
-        
-        double *r = new double[2];
-        r[0] = lat;     r[1] = log;
-        group_coords.insert(pair<int, double*>(mid, r));
-         delete []str;
-    }
-    in.close();
-    
-    if(group_coords.size() < group_names.size()){
-        cout << "Group coordinates are missing" << endl;
-        exit(1);
-    }
     
     //calculate cpop
     for(map<int, int>::iterator j = group_pops.begin(); j != group_pops.end(); ++j){

@@ -2,24 +2,24 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Build",
             "type": "shell",
-            "label": "C/C++: g++ build active file",
-            "command": "/usr/bin/g++",
-            "args": [
-                "-std=c++11",
-                "-g",
-                "${workspaceFolder}/model/*.cpp",
-                "-o",
-                "${fileDirname}/${fileBasenameNoExtension}"
-            ],
+            "command": "g++ -std=c++11 -g model/*.cpp -o model/main",
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": "build",
-            "detail": "compiler: /usr/bin/g++"
+            "problemMatcher": ["$gcc"],
+            "group": "build"
+        },
+        {
+            "label": "Build and Run",
+            "type": "shell",
+            "command": "g++ -std=c++11 -g model/*.cpp -o model/main && cd model && ./main ../output/out.csv",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": ["$gcc"],
+            "group": "build"
         }
     ]
 }

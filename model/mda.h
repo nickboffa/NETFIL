@@ -10,7 +10,7 @@ class mda_strat;
 class drugs;
 
 
-int count_mda_scenarios(string file);
+int count_mda_scenarios(string filename);
 mda_strat get_mda_strat(string filename, int N);
 
 

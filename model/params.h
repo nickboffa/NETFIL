@@ -77,9 +77,8 @@ void partial_shuffle(vector<double>& vec, int start, int end);
 #define Tran_param                  "TranParams.csv"
 */
 
-#define group_name                  "group_names.csv"
-#define group_locations             "group_locations.csv"
-#define group_populations           "group_populations.csv"
+#define group_data                  "groups.csv"
+
 #define exposure_age                "exposure_age.csv"
 
 #define birth_file                  "birth_rates.csv"

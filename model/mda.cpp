@@ -4,15 +4,15 @@
 #include "mda.h"
 using namespace std;
 
-int count_mda_scenarios(string file){
+int count_mda_scenarios(string filename){
     //counting the number of different MDA scenerios that we are testing!
 
     ifstream in;
     string line;
     
-    in.open(file.c_str());
+    in.open(filename.c_str());
     if(!in){
-        cout << "open " << file << " failed" << endl;
+        cout << "open " << filename << " failed" << endl;
         exit(1);
     }
     int MDAScenarioNum {-1}; //Count the number of lines (not including the first, which is just the column titles)
@@ -35,12 +35,15 @@ mda_strat get_mda_strat(string filename, int N)
     }
     
     string line;
+
     //skip N lines
     for(int i = 0; i < N; ++i){
         getline(in, line);
     }
     
     getline(in,line);
+
+    // The below could maybe be modernised using
     char *str = new char[line.size()+1];
     strcpy(str, line.c_str());
     char *p = NULL;

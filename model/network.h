@@ -27,7 +27,7 @@ public:
 
     map<int, agent*> group_pop;       //group population (out of work hours)
 
-    //communiting data
+    //commuting data
     struct c_node{ //used to store distances to all other groups from current group
         int gid; //other group idea
         double dis; //the distance!

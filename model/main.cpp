@@ -7,7 +7,6 @@
 
 using namespace std;
 
- 
 int SimulationNumber = 0;
 
 string prv_out_loc;
@@ -18,12 +17,12 @@ int main(int argc, const char * argv[]){
    
     region *rgn = new region(region_id, region_name);
     
-    string mda_data = datadir; mda_data = mda_data + MDA_params;
+    string mda_data = string(datadir) + MDA_params; // Both are #define macros
 
     //Counting the number of different simulations we will perform
     int MDAScenario_count = count_mda_scenarios(mda_data);
-   // cout << "There are " << MDAScenario_count << " scenarios" << endl;
-
+    // cout << "There are " << MDAScenario_count << " scenarios" << endl;
+    
     //now looping over scenarios
     for (int scenario_count = 0; scenario_count < MDAScenario_count; ++scenario_count){
 
