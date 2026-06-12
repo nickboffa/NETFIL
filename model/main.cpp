@@ -4,6 +4,7 @@
 
 #include "main.h"
 #include "mda.h"
+#include "write_netfil_log.h"
 
 using namespace std;
 
@@ -12,7 +13,7 @@ int SimulationNumber = 0;
 string prv_out_loc;
 
 int main(int argc, const char * argv[]){
-
+    time_t start_time = time(nullptr);
     prv_out_loc = argv[1];
    
     region *rgn = new region(region_id, region_name);
@@ -47,6 +48,16 @@ int main(int argc, const char * argv[]){
 
     }
 
+    time_t end_time = time(nullptr);
+
+    string filename = string(outdir) + prv_out_loc;
+    write_netfil(
+        filename,
+        start_time, 
+        end_time,
+        rgn,
+        mda_data
+    );
+
     return 0;
-    
-}
+} 

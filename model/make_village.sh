@@ -13,7 +13,8 @@ then
 	cp ../data/Fitted/Village/Theta_$1/Theta1.txt ../data/Fitted/
 	cp ../data/Fitted/Village/Theta_$1/Work.txt ../data/Fitted/
 	cp ../data/Fitted/Village/Theta_$1/TranParams.csv ../data/
-	exit 0	
+	echo "Village" > ../data/current_scale.txt
+	exit 0
 else
 	echo "Incorrect input!"
 	exit 1

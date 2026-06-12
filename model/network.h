@@ -68,7 +68,7 @@ public:
     double immature_to_antigen;     //at init the ratio of people with just immature worms to antigen positive people (fitted) 
     double immature_and_ant;       //at init the ratio of people with people who are ant pos but mf negative with immature worms
 
-    double worktonot = 0;               //where to a majaortiy of bites occur?
+    double worktonot = 0;               //where do a majortiy of bites occur?
 
     double mf_to_ant_2014; //used to save fitting data
     
@@ -141,8 +141,6 @@ public:
     void reset_population();
     void reset_prev();
     void output_epidemics(int year, int day, mda_strat strategy);    //output outbreak data
-    void output_abc_epidemics(int year);
-    void output_abc_epidemics_single(int year);
     int factorial(int n);
     int n_worms();
     void prob_worms(double agg_param_init, double worm_mean);

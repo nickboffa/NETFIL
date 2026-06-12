@@ -70,5 +70,10 @@
         "semaphore": "cpp",
         "stop_token": "cpp",
         "thread": "cpp"
-    }
+    },
+    "editor.formatOnSave": false,
+    "editor.formatOnType": false,
+    "C_Cpp.formatting": "clangFormat",
+    "C_Cpp.clangFormatPath": "/opt/homebrew/bin/clang-format",
+    "C_Cpp.clangFormatStyle": "file"
 }

@@ -11,8 +11,9 @@ then
 	cp ../data/Scales/One/* ../data/
  	cp ../data/Fitted/One/Theta_$1/Agg.txt ../data/Fitted/
 	cp ../data/Fitted/One/Theta_$1/Theta1.txt ../data/Fitted/
-	cp ../data/Fitted/One/Theta_$1/TranParams.csv ../data/	
-	exit 0	
+	cp ../data/Fitted/One/Theta_$1/TranParams.csv ../data/
+	echo "One" > ../data/current_scale.txt
+	exit 0
 else
 	echo "Incorrect input!"
 	exit 1

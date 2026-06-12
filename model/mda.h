@@ -31,13 +31,12 @@ public:
         PartSterMagnitude = PSM;
     }
     
-    
-    void print_drugs(){ //print drug profiles!
-        cout << "KillProb: " << KillProb << endl;
-        cout << "FullSterProb: " << FullSterProb << endl;
-        cout << "PartSterProb: " << PartSterProb << endl;
-        cout << "SterDur: " << SterDur << endl;
-        cout << "PartSterMagnitude: " << PartSterMagnitude << endl;
+    void print_drugs(ostream& out = cout){
+        out << "Drug's KillProb: " << KillProb << endl;
+        out << "Drug's FullSterProb: " << FullSterProb << endl;
+        out << "Drug's PartSterProb: " << PartSterProb << endl;
+        out << "Drug's SterDur: " << SterDur << endl;
+        out << "Drug's PartSterMagnitude: " << PartSterMagnitude << endl;
     }
     
 };
@@ -69,15 +68,17 @@ public:
         }   
     }
 
-    void print_mda_strat(){
-        cout << endl;
-        cout << "Coverage: " << Coverage * 100 << "%" << endl;
-        drug.print_drugs();
-        cout << "Start Year: " << StartYear << endl;
-        cout << "Number of Rounds: " << NumRounds << endl;
-        cout << "Number of Simulations: " << NumSims << endl;
-        cout << endl;
+    void print_mda_strat(ostream& out = cout){
+        out << "Coverage: " << Coverage * 100 << "%" << endl;
+        out << "Minimum age: " << min_age << endl;
+        out << "Start year: " << StartYear << endl;
+        out << "Number of rounds: " << NumRounds << endl;
+        out << "Years between rounds: " << YearsBetweenRounds << endl;
+        out << "Number of simulations: " << NumSims << endl;
+        drug.print_drugs(out);
     }
+
+
     
     bool is_mda_year(int Year){ // Returns true if given year is an MDA year for the strategy
         return find(MDAYears.begin(), MDAYears.end(), Year) != MDAYears.end();
