@@ -14,11 +14,11 @@ void region::implement_MDA(int year, mda_strat strat){
         
         n_pop += grp->group_pop.size();
         
-        for(map<int, agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //for all people 
+        for(map<int, agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //for every person 
             
-            double age = k->second->age/365.0; // agents age!
+            double age = k->second->age/365.0; // agent's age
 
-            if(age<strat.min_age) ++n_under_min; 
+            if (age<strat.min_age) ++n_under_min; 
 
         }
     }
@@ -31,8 +31,8 @@ void region::implement_MDA(int year, mda_strat strat){
         
         for(map<int, agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //for all people 
             
-            double age = k->second->age/365.0; // agents age!
-            if(age > strat.min_age){
+            double age = k->second->age/365.0; // agent's age
+            if(age >= strat.min_age){
                 if(random_real() <= strat.Coverage/(double)target_prop){
                     ++n_treated;
                     k->second->mda(strat.drug);
@@ -47,9 +47,6 @@ void region::implement_MDA(int year, mda_strat strat){
 
 void region::handl_commute(int year){
     
-    int recalc_years = 100; //how often we want to recalc commuters
-    char distance_type = 'r'; // r for road distance, e for euclidean 
-
     //firstly need to clear previous storage
    
     if (year % recalc_years == 0){    

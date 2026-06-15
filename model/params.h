@@ -42,6 +42,8 @@ using namespace std;
 #define start_year                  2010 //model starting year
 
 #define commuting_prop              0.5 //proportion of group that commut daily (over 5 years old)
+#define recalc_years                100 //how often we want to recalc commuters
+#define distance_type               'r' // r for road distance, e for euclidean
 #define DailyProbLoseAntigen        0.992327946   //set so the half-life is 90 days i.e. pow(0.5,1/90)
 
 #define ABC_fitting                 false
