@@ -15,13 +15,13 @@ int count_mda_scenarios(string filename){
         cout << "open " << filename << " failed" << endl;
         exit(1);
     }
-    int MDAScenarioNum {-1}; //Count the number of lines (not including the first, which is just the column titles)
+    int mda_scenario_num {-1}; //Count the number of lines (not including the first, which is just the column titles)
 
     while (getline(in, line)){
-        ++MDAScenarioNum;
+        ++mda_scenario_num;
     }
     in.close();
-    return MDAScenarioNum;
+    return mda_scenario_num;
 }
 
 MDAStrat get_mda_strat(string filename, int N)
@@ -43,34 +43,26 @@ MDAStrat get_mda_strat(string filename, int N)
     
     getline(in,line);
 
-    // The below could maybe be modernised using
     char *str = new char[line.size()+1];
     strcpy(str, line.c_str());
     char *p = NULL;
 
-    p = strtok(str, ",");       double MDACoverage = atof(p);
-    p = strtok(NULL, ",");      double MDAKillProb = atof(p);
-    p = strtok(NULL, ",");      double MDAFullSterProb = atof(p);
-    p = strtok(NULL, ",");      double MDAPartSterProb = atof(p);
-    p = strtok(NULL, ",");      double MDASterDur = atof(p);
-    p = strtok(NULL, ",");      double MDAPartSterMagnitude = atof(p);
-    p = strtok(NULL, ",");      int MinAge = atoi(p);
-    p = strtok(NULL, ",");      int MDAStartYear = atoi(p);
-    p = strtok(NULL, ",");      int MDANumRound = atoi(p);
-    p = strtok(NULL, ",");      int MDAYearsBetweenRound = atoi(p);
-    p = strtok(NULL, ",");      int NumSims = atoi(p);
+    p = strtok(str, ",");       double coverage = atof(p);
+    p = strtok(NULL, ",");      double kill_prob = atof(p);
+    p = strtok(NULL, ",");      double full_ster_prob = atof(p);
+    p = strtok(NULL, ",");      double part_ster_prob = atof(p);
+    p = strtok(NULL, ",");      double ster_dur = atof(p);
+    p = strtok(NULL, ",");      double part_ster_magnitude = atof(p);
+    p = strtok(NULL, ",");      int min_age = atoi(p);
+    p = strtok(NULL, ",");      int mda_start_year = atoi(p);
+    p = strtok(NULL, ",");      int mda_num_round = atoi(p);
+    p = strtok(NULL, ",");      int mda_years_between_rounds = atoi(p);
+    p = strtok(NULL, ",");      int num_sims = atoi(p);
    
     delete []str;
-    
-    //creating drug profile
-    Drugs drug {MDAKillProb, MDAFullSterProb, MDAPartSterProb, MDASterDur, MDAPartSterMagnitude};
-   
-    //creating mda strate
-    MDAStrat strat {MDACoverage, drug, MinAge, MDAStartYear, MDANumRound, MDAYearsBetweenRound, NumSims};
 
-    //printing MDA and drug stats
-    //drug.print_drugs();
-    //strat.print_mda_strat(cout);
+    Drugs drug {kill_prob, full_ster_prob, part_ster_prob, ster_dur, part_ster_magnitude};
+    MDAStrat strat {coverage, drug, min_age, mda_start_year, mda_num_round, mda_years_between_rounds, num_sims};
 
     return strat;
 }

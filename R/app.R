@@ -24,7 +24,7 @@ MODEL_RIBBON_COL <- c("Many" = "rgba(126,207,255,0.12)", "Raster660" = "rgba(255
 df_all_overall <- bind_rows(lapply(names(DATASETS), function(nm) {
   DATASETS[[nm]] %>%
     filter(!is.na(lat), !is.na(lon)) %>%
-    group_by(SimulationNumber, Time) %>%
+    group_by(sim_i, Time) %>%
     summarise(Mf_sim = mean(Mf_prev, na.rm = TRUE), .groups = "drop") %>%
     mutate(Time_round = round(Time, 2)) %>%
     group_by(Time_round) %>%
@@ -57,7 +57,7 @@ initial_time_steps <- DATASETS[[1]] %>%
   mutate(Time_round = round(Time, 2)) %>%
   pull(Time_round) %>% unique() %>% sort()
 
-initial_sims <- sort(unique(DATASETS[[1]]$SimulationNumber))
+initial_sims <- sort(unique(DATASETS[[1]]$sim_i))
 
 # ── UI ────────────────────────────────────────────────────────────────────────
 ui <- fluidPage(
@@ -235,19 +235,19 @@ server <- function(input, output, session) {
   sim_val <- reactive({
     v <- input$sim_select
     req(!is.null(v), !is.na(v))
-    sims <- sort(unique(dataset()$SimulationNumber))
+    sims <- sort(unique(dataset()$sim_i))
     as.integer(max(min(round(v), max(sims)), min(sims)))
   })
 
   output$sim_label <- renderText({
-    sims <- sort(unique(dataset()$SimulationNumber))
+    sims <- sort(unique(dataset()$sim_i))
     paste0("Sim (0–", max(sims), ")")
   })
 
   # ── Map data: selected simulation ─────────────────────────────────────────
   df_map <- reactive({
     dataset() %>%
-      filter(SimulationNumber == sim_val()) %>%
+      filter(sim_i == sim_val()) %>%
       group_by(Group, Time, lat, lon) %>%
       summarise(mf = mean(mf, na.rm = TRUE), pop = mean(pop, na.rm = TRUE),
                 .groups = "drop") %>%
@@ -257,7 +257,7 @@ server <- function(input, output, session) {
   # ── Current-sim line: per-time mean across groups ──────────────────────────
   df_current_sim <- reactive({
     dataset() %>%
-      filter(SimulationNumber == sim_val()) %>%
+      filter(sim_i == sim_val()) %>%
       group_by(Time) %>%
       summarise(Mf_sim = mean(Mf_prev, na.rm = TRUE), .groups = "drop") %>%
       mutate(Time_round = round(Time, 2))
@@ -265,7 +265,7 @@ server <- function(input, output, session) {
 
   # ── Reset when model changes ───────────────────────────────────────────────
   observeEvent(input$model_select, {
-    sims <- sort(unique(dataset()$SimulationNumber))
+    sims <- sort(unique(dataset()$sim_i))
     updateNumericInput(session, "sim_select",
                        value = min(sims), min = min(sims), max = max(sims))
     playing(FALSE)

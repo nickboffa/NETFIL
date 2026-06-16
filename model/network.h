@@ -78,15 +78,15 @@ public:
     double init_beta_b;
     double init_poisson;
 
-    double age_dist[n_age_groups];     //container for the age distribution
-    int age_dist_lower[n_age_groups];
-    int age_dist_upper[n_age_groups];
+    double age_dist[N_AGE_GROUPS];     //container for the age distribution
+    int age_dist_lower[N_AGE_GROUPS];
+    int age_dist_upper[N_AGE_GROUPS];
     //used to keep track of total population for easy analysis
     map<int, Agent*> pre_indiv;        //collection of immautre worms individuals
     map<int, Agent*> inf_indiv;        //collection ofinfectious individuals
     map<int, Agent*> uninf_indiv;      //collection of peple with adult worms but are uninfectious individuals (single gender or sterile)
     map<int, Agent*> no_worms_indiv;   //collection of people with no worms!
-    vector<Agent*> pvec[n_age_groups]; //storing all people of certain age group
+    vector<Agent*> pvec[N_AGE_GROUPS]; //storing all people of certain age group
     vector<double> cum_sum_prob_worm {};
     //now all the information about the groups
     int next_gid, group_blocks;
@@ -108,29 +108,29 @@ public:
 
     map<int, int> group_pops;           //pop in each group
  
-    double mortality_rate[n_age_groups];                //mortatlity rates
-    double birth_rate[n_age_groups];
+    double mortality_rate[N_AGE_GROUPS];                //mortatlity rates
+    double birth_rate[N_AGE_GROUPS];
     double exposure_by_age[16];
 
-    double achieved_coverage[sim_years]; // the actual drug coverage achieved each year (for each year of the simulation). Will be zero for most years.
-    int number_treated[sim_years];
+    double achieved_coverage[SIM_YEARS]; // the actual drug coverage achieved each year (for each year of the simulation). Will be zero for most years.
+    int number_treated[SIM_YEARS];
 
     Region(int rid, string rname);
 
     //Functions that run on region
     void sim(int year, MDAStrat strategy);                     //wrapper to run simulation
-    void handl_commute(int year);                               // generate commuter network and assign
+    void handle_commute(int year);                               // generate commuter network and assign
     void remove_agent(Agent *p);                                   //remove dead people from population
     void radt_model(char m);                                    //radiation model for daily trips (work/school)
     //void hndl_migrt(int day);                                //TODO long term migration between groups (to help avoid groups that have died out)
     void renew_pop(int year, int day, int dt);
-    void hndl_birth(int year, int day, int dt);                         // handle new births
+    void handle_birth(int year, int day, int dt);                         // handle new births
     void calc_risk();         //find prevalence in each village
     void update_epi_status(int year, int day, int dt);                  //update agent's epi status
     void seed_lf();                                             //seed LF in population
     double mf_functional_form(char form, double worm_strength);            //converts worm strength to mf load
 
-    void implement_MDA(int year, MDAStrat strat);           //MDA!
+    void implement_mda(int year, MDAStrat strat);           //MDA!
     
     bool pop_reload();
     void read_groups();                                 //read input data

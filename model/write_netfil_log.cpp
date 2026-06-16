@@ -45,7 +45,7 @@ void write_netfil(
     write_section(netfil, "Parameters of last simulation number");
     
     // Outputs the scale of whichever make_<>.sh file was run most recently
-    ifstream scale_file(string(datadir) + "current_scale.txt");
+    ifstream scale_file(string(DATADIR) + "current_scale.txt");
     string current_scale;
     getline(scale_file, current_scale);
     scale_file.close();
@@ -73,39 +73,39 @@ void write_netfil(
     }
 
     write_section(netfil, "Year parameters");
-    write_value(netfil, "Starting year of simulation", start_year);
-    write_value(netfil, "Ending year of simulation", start_year+sim_years);
-    write_value(netfil, "No. years simulated", sim_years);
+    write_value(netfil, "Starting year of simulation",  START_YEAR);
+    write_value(netfil, "Ending year of simulation", START_YEAR+SIM_YEARS);
+    write_value(netfil, "No. years simulated", SIM_YEARS);
     
     write_section(netfil, "Worm parameters");
-    write_value(netfil, "Prop worms that are male", proportion_male_worm);
-    write_value(netfil, "Immature period mean", immature_period_mean);
-    write_value(netfil, "Immature period stdev", immature_period_mean_std);
-    write_value(netfil, "Mature period mean", mature_period_mean);
-    write_value(netfil, "Mature period stdev", mature_period_mean_std);
+    write_value(netfil, "Prop worms that are male", PROPORTION_MALE_WORM);
+    write_value(netfil, "Immature period mean", IMMATURE_PERIOD_MEAN);
+    write_value(netfil, "Immature period stdev", IMMATURE_PERIOD_MEAN_STD);
+    write_value(netfil, "Mature period mean", MATURE_PERIOD_MEAN);
+    write_value(netfil, "Mature period stdev", MATURE_PERIOD_MEAN_STD);
 
     write_section(netfil, "Human parameters");
-    write_value(netfil, "Prop humans that are male", proportion_male_agent);
-    write_value(netfil, "Proportion of group >5yo that commute", commuting_prop);
-    write_value(netfil, "Number of age groups", n_age_groups);
-    write_value(netfil, "Maximum age age upon init", max_init_age);
+    write_value(netfil, "Prop humans that are male", PROPORTION_MALE_AGENT);
+    write_value(netfil, "Proportion of group >5yo that commute", COMMUTING_PROP);
+    write_value(netfil, "Number of age groups", N_AGE_GROUPS);
+    write_value(netfil, "Maximum age age upon init", N_AGE_GROUPS * WIDTH_AGE_GROUPS - 1);
 
     write_section(netfil, "Disease parameters");
 
-    write_value(netfil, "Initial antigen prevalence mean", ant_0);
-    string init_prev_range = to_string(init_prev_min) + "—" + to_string(init_prev_max);
+    write_value(netfil, "Initial antigen prevalence mean", ANT_0);
+    string init_prev_range = to_string(INIT_PREV_MIN) + "—" + to_string(INIT_PREV_MAX);
     write_value(netfil, "Allowed initial antigen prevalence range", init_prev_range);
 
-    string init_ratio_range = to_string(init_ratio_min) + "—" + to_string(init_ratio_max);
+    string init_ratio_range = to_string(INIT_RATIO_MIN) + "—" + to_string(INIT_RATIO_MAX);
     write_value(netfil, "Initial mf:ant ratio range(?)", init_ratio_range);
 
-    write_value(netfil, "Probability you lose antigen each day", DailyProbLoseAntigen);
+    write_value(netfil, "Probability you lose antigen each day", DAILY_PROB_LOSE_ANT);
 
     write_section(netfil, "Miscellaneous parameters");
-    write_value(netfil, "Sigma_g (household stdev)", sigma_g);
-    write_value(netfil, "Beta_0", beta_0);
-    write_value(netfil, "Distance type (e euclidean, r road)", distance_type);
-    write_value(netfil, "Number of years till road network re-estimated", recalc_years);
+    write_value(netfil, "Sigma_g (household stdev)", SIGMA_G);
+    write_value(netfil, "Beta_0", BETA_0);
+    write_value(netfil, "Distance type (e euclidean, r road)", DISTANCE_TYPE);
+    write_value(netfil, "Number of years till road network re-estimated", RECALC_YEARS);
        
     write_section(netfil, "TIMESTAMP");
     int duration = (int)difftime(end_time, start_time);

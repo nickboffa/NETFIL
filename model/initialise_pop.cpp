@@ -38,7 +38,7 @@ Region::Region(int rid, string rname){
         //now saving all our config files (to use on other runs!)
 
         //Saving group meta data
-        string file = config;   file = file + rname;    file = file + ".init";
+        string file = CONFIG;   file = file + rname;    file = file + ".init";
         ofstream out(file.c_str());
 
         out << std::setprecision(2) << std::setiosflags(std::ios::fixed);
@@ -62,7 +62,7 @@ Region::Region(int rid, string rname){
             string grp_str = group_numbers[grp->gid]; //group name
 
             //file name 
-            file = config_pop;  file = file + grp_str;  file = file + "_pop.init";
+            file = CONFIG_POP;  file = file + grp_str;  file = file + "_pop.init";
 
             out.open(file.c_str());
             out << "ID,age" << endl;
@@ -83,7 +83,7 @@ Region::Region(int rid, string rname){
 bool Region::pop_reload(){
 
     //checking if we have already generated the input!
-    string file = config;   file = file + rname;    file = file + ".init";
+    string file = CONFIG;   file = file + rname;    file = file + ".init";
     ifstream in(file.c_str());
     
     if(!in) return false;
@@ -117,7 +117,7 @@ bool Region::pop_reload(){
     for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){
         string grp_str = group_numbers[j->first];
         
-        file = config_pop;   file = file + grp_str;   file = file + "_pop.init";
+        file = CONFIG_POP;   file = file + grp_str;   file = file + "_pop.init";
         in.open(file.c_str());
         
         string line;
@@ -147,7 +147,7 @@ void Region::read_groups(){
     ifstream in;
     string line, file;
    
-    file = datadir; file = file + group_data;
+    file = DATADIR; file = file + GROUP_DATA;
     in.open(file.c_str());
 
     getline(in, line);          //skip header
@@ -180,7 +180,7 @@ void Region::read_groups(){
     group_blocks = (int)group_names.size();
 
     //reading in age distribution
-    file = datadir;    file = file + age_brackets;
+    file = DATADIR;    file = file + AGE_BRACKETS;
     in.open(file.c_str());
     
     while(getline(in, line)){
@@ -226,7 +226,7 @@ void Region::read_parameters(){
     string line, file;
 
     //reading in birth rate data 
-    file = datadir;     file = file + birth_file;
+    file = DATADIR;     file = file + BIRTH_FILE;
     in.open(file.c_str());
 
     //skip the description
@@ -247,7 +247,7 @@ void Region::read_parameters(){
 
 
      //reading in mortality rate data 
-    file = datadir;     file = file + mortality_file;
+    file = DATADIR;     file = file + MORTALITY_FILE;
     in.open(file.c_str());
 
     //skip the description
@@ -265,7 +265,7 @@ void Region::read_parameters(){
     in.close();
 
     //read exposure by age
-    file = datadir;    file = file + exposure_age;
+    file = DATADIR;    file = file + EXPOSURE_AGE;
     in.open(file.c_str());
     if(!in){
         cout << "open " << file << " failed" << endl;
@@ -293,7 +293,7 @@ void Region::read_parameters(){
         road_dst = new double[len];     memset(road_dst, 0, sizeof(double)*len);
         euclid_dst = new double[len];   memset(euclid_dst, 0, sizeof(double)*len);
         
-        file = datadir;     file = file + car_distance;
+        file = DATADIR;     file = file + CAR_DISTANCE;
         in.open(file.c_str());
         
         getline(in, line);
@@ -339,7 +339,7 @@ void Region::read_parameters(){
         grp_vec.shrink_to_fit();
         in.close();
         
-        file = datadir;     file = file + crow_distance;
+        file = DATADIR;     file = file + CROW_DISTANCE;
         in.open(file.c_str());
         
         getline(in, line);
@@ -383,9 +383,9 @@ void Region::read_parameters(){
         in.close();
     }
     
-    if (ABC_fitting){
+    if (ABC_FITTING){
 
-        file = Tran_param;
+        file = TRAN_PARAM;
         in.open(file.c_str());
         getline(in, line);
         getline(in,line);
@@ -410,8 +410,8 @@ void Region::read_parameters(){
     
     }
     else{
-        if (!run_off_fitted){ //running from point estimates from Trans-Params
-            file = datadir; file = file + Tran_param;
+        if (!RUN_OFF_FITTED){ //running from point estimates from Trans-Params
+            file = DATADIR; file = file + TRAN_PARAM;
             in.open(file.c_str());
             getline(in,line);
             getline(in,line);
@@ -435,10 +435,10 @@ void Region::read_parameters(){
             worktonot  = w2n;
        
         }
-        else if (run_off_fitted){
+        else if (RUN_OFF_FITTED){
                         
             
-            file = datadir; file = file + Tran_param;
+            file = DATADIR; file = file + TRAN_PARAM;
             
             in.open(file.c_str());
             getline(in, line);
@@ -463,7 +463,7 @@ void Region::read_parameters(){
             int n_values;
             int w_value;
 
-            file = datadir; file = datadir + loc;
+            file = DATADIR; file = DATADIR + loc;
             in.open(file.c_str());
             
             while(getline(in, line)){
@@ -479,7 +479,7 @@ void Region::read_parameters(){
             values.shrink_to_fit(); 
 
             loc = "Fitted/Agg.txt";
-            file = datadir; file = datadir + loc;
+            file = DATADIR; file = DATADIR + loc;
             in.open(file.c_str());
           
             while(getline(in, line)){
@@ -497,7 +497,7 @@ void Region::read_parameters(){
            
             if (group_blocks > 1){
                 loc = "Fitted/Work.txt";
-                file = datadir; file = datadir + loc;
+                file = DATADIR; file = DATADIR + loc;
                 in.open(file.c_str());
 
                 while(getline(in, line)){
@@ -517,7 +517,7 @@ void Region::read_parameters(){
     }
 
     //read in init params
-    file = datadir; file = file + Init_params;
+    file = DATADIR; file = file + INIT_PARAMS;
     in.open(file.c_str());
     getline(in,line);
     getline(in,line);
@@ -555,7 +555,7 @@ void Region::reset_population(){
     }
     group_coords.clear();
 
-    for(int i = 0; i < n_age_groups; ++i){
+    for(int i = 0; i < N_AGE_GROUPS; ++i){
         pvec[i].clear();
     }
     group_names.clear();
@@ -657,9 +657,9 @@ void Group::bld_group_pop(){
     
     while(group_population > 0 ){
         double age_p = random_real();
-        for(int i = 0; i < n_age_groups; ++i){
-            int lower_bound = 5*i; //lower bound of our age bracket
-            int upper_bound = 5*i+4;
+        for(int i = 0; i < N_AGE_GROUPS; ++i){
+            int lower_bound = WIDTH_AGE_GROUPS*i; //lower bound of our age bracket
+            int upper_bound = WIDTH_AGE_GROUPS*(i+1) - 1; // upper bound of age bracket
             
             double ll = age_dist[i];
             double uu = age_dist[i+1];
@@ -669,11 +669,6 @@ void Group::bld_group_pop(){
                 int age = 365*(lower_bound + (upper_bound - lower_bound)*random_real()); // age 
                 Agent *p = new Agent(id,rgn->agg_param,age); //creating new agent of correct age!
                 add_member(p);
-                if (age/365 > 80){
-                    cout << i << endl;
-                    cout << lower_bound << endl;
-                    cout << upper_bound << endl;
-                }
                 break;
             }
         }

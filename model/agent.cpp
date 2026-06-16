@@ -8,12 +8,12 @@ Agent::Agent(int aid,  double bite_shape, int age){
     this->aid = aid;
     this->age = age;
    
-    ChangedEpiToday = false;
+    changed_epi_today = false;
     status = 'S';
 
     worm_strength = 0;
 
-    lastwormtime = - std::numeric_limits<double>::infinity();
+    last_mworm_time = - std::numeric_limits<double>::infinity();
 
     bite_scale = bite_gamma(bite_shape, 1/bite_shape);
 }
@@ -46,10 +46,10 @@ void Agent::sim_bites(double c, double worktonot, bool single){
     }
     
     for(int i = 0; i < total_bites; ++i){ //looping through infective bites and assigning worms
-        int immature_period = normal(immature_period_mean, immature_period_mean_std); //immature period of worm
-        int mature_period = normal(mature_period_mean, mature_period_mean_std); //mature period of worm
+        int immature_period = normal(IMMATURE_PERIOD_MEAN, IMMATURE_PERIOD_MEAN_STD); //immature period of worm
+        int mature_period = normal(MATURE_PERIOD_MEAN, MATURE_PERIOD_MEAN_STD); //mature period of worm
 
-        if (random_real() < proportion_male_worm){ // worm is male!
+        if (random_real() < PROPORTION_MALE_WORM){ // worm is male!
             wvec.push_back(new Worm('P', immature_period, mature_period, 'M'));
         }
         else{ // worm is female!
@@ -64,15 +64,15 @@ void Agent::mda(Drugs drug){
     if(wvec.size() > 0){ //if person has worms
         double rr = random_real(); //same thing will occur to all worms!
         for(int i = 0; i < wvec.size(); i++){ // looping through worms
-            wvec[i]->age_mda = drug.SterDur*365;
-            if (rr <= drug.KillProb){
+            wvec[i]->age_mda = drug.ster_dur*365;
+            if (rr <= drug.kill_prob){
                 wvec[i]->status = 'D';
             }
-            else if(rr <= drug.KillProb + drug.FullSterProb){ // sterilise worms with probability FullSterProb
+            else if(rr <= drug.kill_prob + drug.full_ster_prob){ // sterilise worms with probability full_ster_prob
                 wvec[i]->mda_sterile = 0.0; //worm is sterile!
             }
-            else if (rr <= drug.KillProb + drug.FullSterProb + drug.PartSterProb){ //Partially sterilise with probability PartSterProb
-                wvec[i]->mda_sterile = min(wvec[i]->mda_sterile, 1 - drug.PartSterMagnitude); // worm is partially sterile, we also ensure that mda does NOT increase infectivity of an already sterilised worm
+            else if (rr <= drug.kill_prob + drug.full_ster_prob + drug.part_ster_prob){ //Partially sterilise with probability part_ster_prob
+                wvec[i]->mda_sterile = min(wvec[i]->mda_sterile, 1 - drug.part_ster_magnitude); // worm is partially sterile, we also ensure that mda does NOT increase infectivity of an already sterilised worm
             }
         }
     }
@@ -143,7 +143,7 @@ void Agent::update(int year, int day, int dt){
 
     //Record if worm has died!
     if((prevstatus == 'U' || prevstatus == 'I') && (status == 'S' || status == 'E')){ // all mature worms have died!
-        lastwormtime = year * 365 + day*dt;
+        last_mworm_time = year * 365 + day*dt;
     }
     
 }

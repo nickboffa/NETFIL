@@ -66,7 +66,7 @@ if (SCALE == "Raster660") {
   file.copy(file.path(scale_dir, "road_dist.csv"), file.path(data_dir, "road_dist.csv"), overwrite = TRUE)
 }
 
-# ── Helper: run model from model/ so datadir and outdir resolve correctly ───────
+# ── Helper: run model from model/ so DATADIR and OUTDIR resolve correctly ───────
 run_model <- function(id) {
   old_wd <- getwd()
   on.exit(setwd(old_wd))
@@ -80,25 +80,20 @@ run_model <- function(id) {
 parse_output <- function(path) {
   tryCatch({
     dat <- read_csv(path, col_types = cols(.default = "d"), show_col_types = FALSE)
-    colnames(dat)[1:23] <- c(
-      "SimNum", "Year", "Day", "Agg", "Theta1", "Theta2", "WorktoNot",
-      "AntImm", "ImmToAnt", "Coverage", "KillProb", "FullSter", "PartSter",
-      "SterDur", "PartSterMag", "StartYear", "NumRounds", "YearsBetween",
-      "AchCov", "SimYears", "Pop", "inf", "ant"
-    )
-    r14 <- dplyr::filter(dat, Year == 2014, Day == 0)
-    r16 <- dplyr::filter(dat, Year == 2016, Day == 0)
-    # One row per simulation replicate, matched by SimNum
-    tibble(SimNum = r16$SimNum) |>
+
+    r14 <- dplyr::filter(dat, year == 2014, day == 0)
+    r16 <- dplyr::filter(dat, year == 2016, day == 0)
+    # One row per simulation replicate, matched by sim_i
+    tibble(sim_i = r16$sim_i) |>
       mutate(
-        Ratio_2014   = map_dbl(SimNum, function(s) {
-          row <- r14[r14$SimNum == s, ]
-          if (nrow(row) > 0 && row$ant[1] > 0) row$inf[1] / row$ant[1] else NA_real_
+        Ratio_2014   = map_dbl(sim_i, function(s) {
+          row <- r14[r14$sim_i == s, ]
+          if (nrow(row) > 0 && row$ant_total[1] > 0) row$inf_total[1] / row$ant_total[1] else NA_real_
         }),
-        Antigen_2016 = if_else(r16$Pop > 0, r16$ant / r16$Pop * 100, NA_real_),
-        MF_2016      = if_else(r16$Pop > 0, r16$inf / r16$Pop * 100, NA_real_)
+        Antigen_2016 = if_else(r16$pop_total > 0, r16$ant_total / r16$pop_total * 100, NA_real_),
+        MF_2016      = if_else(r16$pop_total > 0, r16$inf_total / r16$pop_total * 100, NA_real_)
       ) |>
-      dplyr::select(-SimNum)
+      dplyr::select(-sim_i)
   }, error = function(e) {
     warning("Failed to parse ", path, ": ", conditionMessage(e))
     tibble(Ratio_2014 = NA_real_, Antigen_2016 = NA_real_, MF_2016 = NA_real_)
@@ -107,7 +102,8 @@ parse_output <- function(path) {
 
 # ── Helper: write ABC-GLM output files matching existing format ─────────────────
 write_abc_glm_files <- function(abc_fit, out_dir, label, prior) {
-
+  write_rds(abc_fit, file.path(out_dir, "abc_fit.rds"))
+  
   adj <- as.data.frame(abc_fit$adj.values)
   wts <- abc_fit$weights / sum(abc_fit$weights)
 

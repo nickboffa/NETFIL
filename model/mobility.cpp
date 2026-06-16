@@ -41,7 +41,7 @@ void Region::radt_model(char m){
         }
 
         double mi = src->group_pop.size(); //population of current group
-        double Ti = mi*commuting_prop; //how many people will be commuting 
+        double Ti = mi*COMMUTING_PROP; //how many people will be commuting 
         double cum_sum_ceiling = 0.0;
         double com_prop;
         //now looping over all other locations

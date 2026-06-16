@@ -44,12 +44,16 @@ public:
     int aid; // agent's id
     int age; // agent's age
     double bite_scale;
-    char status; // epi status S = no worms, E = immature only, U = mature but only single sex (ant postive), I =  multiple mature worms (mf postive) 
+    char status; // epi status 
+    // S = no worms
+    // E = immature only
+    // U = mature but only single sex (ant postive)
+    // I =  multiple mature worms (mf postive) 
     
-    double lastwormtime; // time since last adult worm
-    double worm_strength;//keep track of number and sterility of mature female worms when there is an adult male!
+    double last_mworm_time; // time of last adult worm
+    double worm_strength; // tracks number and sterility of mature female worms when there is an adult male
 
-    bool ChangedEpiToday;
+    bool changed_epi_today;
 
     Group *dgp; //daytime group
     Group *ngp; //nightime group

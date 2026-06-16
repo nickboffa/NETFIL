@@ -3,7 +3,7 @@
 #include <cstring>
 
 extern string prv_out_loc;
-extern int SimulationNumber;
+extern int sim_i;
 
 void Region::output_epidemics(int year, int day, MDAStrat strategy){
     
@@ -57,7 +57,7 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
                 if (ws > 9 ) ++tenplus_mated_adult;
 
             }
-            if(a->status == 'I' || a->status == 'U'|| random_real() < pow(DailyProbLoseAntigen, (year*365 +day) - a->lastwormtime) ){ //all people infected with any number of mature worms or who still have lingering antibodies are counted
+            if(a->status == 'I' || a->status == 'U'|| random_real() < pow(DAILY_PROB_LOSE_ANT, (year*365 +day) - a->last_mworm_time) ){ //all people infected with any number of mature worms or who still have lingering antibodies are counted
                 
                 ++antigen_pos_groups[j->first - 1];
                 ++ant_total;
@@ -70,53 +70,52 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
     if (day == 0){
     cout << endl;
     
-    cout << year+start_year << ": " << "prepatent = " << pre_indiv.size() << " uninfectious = " << uninf_indiv.size() << " infectious = " << inf_indiv.size() << " antigen positive = " << ant_total << endl;
+    cout << year+START_YEAR << ": " << "prepatent = " << pre_indiv.size() << " uninfectious = " << uninf_indiv.size() << " infectious = " << inf_indiv.size() << " antigen positive = " << ant_total << endl;
     cout << "overall mf prevalence = " << fixed << setprecision(2) << inf_indiv.size()/(double)rpop*100 << "%" << endl;
     cout<< "overall ant prevalence = " << fixed << setprecision(2) << ant_total/(double)rpop*100 << "%" << endl;
     cout<< "overall ratio prevalence = " << fixed << setprecision(2) << ant_total/inf_total << endl;
     }
-    string prv_dat = outdir;    prv_dat = prv_dat + prv_out_loc; 
+    string prv_dat = OUTDIR;    prv_dat = prv_dat + prv_out_loc; 
     ofstream out;   ifstream in;
     in.open(prv_dat.c_str()); // try opening the target for output
     if(!in){ // if it doesn't exist write a heading
         out.open(prv_dat.c_str());
-        out << "SimulationNumber,";
-        out << "Year,";
-        out << "Day,";
-        out << "Agg,";
-        out << "Theta1,";
-        out << "Theta2,";
-        out << "WorktoNot,";
-        out << "AntandImmature,";
-        out << "OnlyImmature,"; 
-        out << "MDACoverageAttempted,";
-        out << "MDAKillProb,";
-        out << "MDAFullSterProb,";
-        out << "MDAPartSterProb,";
-        out << "MDASterDur,";
-        out << "MDAPartSterMagnitude";
-        out << "MDAMinAge,";
-        out << "MDAStartYear,";
-        out << "MDANumRounds,";
-        out << "MDAYearsBetweenRounds,";
-        out << "AchievedMDACoverage,";
-        out << "SimYears,";
-        out << "Pop_total,";
-        out << "inf_total,"; 
+        out << "sim_i,";
+        out << "year,";
+        out << "day,";
+        out << "agg_param,";
+        out << "theta1,";
+        out << "theta2,";
+        out << "worktonot,";
+        out << "immature_and_ant,";
+        out << "immature_to_antigen,";
+        out << "coverage,";
+        out << "kill_prob,";
+        out << "full_ster_prob,";
+        out << "part_ster_prob,";
+        out << "ster_dur,";
+        out << "part_ster_magnitude,";
+        out << "mda_start_year,";
+        out << "n_mda_rounds,";
+        out << "years_between_rounds,";
+        out << "achieved_coverage,";
+        out << "sim_years,";
+        out << "pop_total,";
+        out << "inf_total,";
         out << "ant_total,";
-        out << "treated,";
-        out << "immature_worm,";
-        out << "non_mated,";
-        out << "one_mated,";
-        out << "two_mated,";
-        out << "three_mated,";
-        out << "four_mated,";
-        out << "five_mated,";
-        out << "six_mated,";
-        out << "seven_mated,";
-        out << "eight_mated,";
-        out << "nine_mated,";
-        out << "tenplus_mated,";
+        out << "number_treated,";
+        out << "immature_worm_only,";
+        out << "non_mated_adult,";
+        out << "one_mated_adult,";
+        out << "two_mated_adult,";
+        out << "three_mated_adult,";
+        out << "four_mated_adult,";
+        out << "five_mated_adult,";
+        out << "six_mated_adult,";
+        out << "seven_mated_adult,";
+        out << "eight_mated_adult,";
+        out << "nine_mated_adult,";
+        out << "tenplus_mated_adult,";
         for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){
             out << "pop_" << group_numbers[j -> second -> gid] << ","; 
         }
@@ -131,8 +130,8 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
     //write the prevalence for whole populations, by gender, by age group and for each village
     out.open(prv_dat.c_str(), ios::app);
     
-    out << SimulationNumber << ",";
-    out << year + start_year << ",";
+    out << sim_i << ",";
+    out << year + START_YEAR << ",";
     out << day << ",";
     out << agg_param << ",";
     out << theta1 << ",";
@@ -140,17 +139,17 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
     out << worktonot << ",";
     out << immature_and_ant  << ",";
     out << immature_to_antigen << ",";
-    out << strategy.Coverage << ",";
-    out << strategy.drug.KillProb << ",";
-    out << strategy.drug.FullSterProb << ",";
-    out << strategy.drug.PartSterProb << ",";
-    out << strategy.drug.SterDur << ",";
-    out << strategy.drug.PartSterMagnitude << ",";
-    out << strategy.StartYear << ",";
-    out << strategy.NumRounds << ",";
-    out << strategy.YearsBetweenRounds << ",";
+    out << strategy.coverage << ",";
+    out << strategy.drug.kill_prob << ",";
+    out << strategy.drug.full_ster_prob << ",";
+    out << strategy.drug.part_ster_prob << ",";
+    out << strategy.drug.ster_dur << ",";
+    out << strategy.drug.part_ster_magnitude << ",";
+    out << strategy.mda_start_year << ",";
+    out << strategy.n_mda_rounds << ",";
+    out << strategy.years_between_rounds << ",";
     out << achieved_coverage[year] << ",";
-    out << sim_years << ",";
+    out << SIM_YEARS << ",";
     out << pop_total << ",";
     out << inf_total << ",";
     out << ant_total << ",";

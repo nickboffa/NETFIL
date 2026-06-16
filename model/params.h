@@ -14,41 +14,42 @@
 
 using namespace std;
 
-#define immature_period_mean        30*9 //mean immature period  
-#define immature_period_mean_std    30*0.1 //STD dev of immature period 
+constexpr double IMMATURE_PERIOD_MEAN     = 30*9;   //mean immature period
+constexpr double IMMATURE_PERIOD_MEAN_STD = 30*0.1; //STD dev of immature period
 
-#define mature_period_mean          364*5 //mean mature period 
-#define mature_period_mean_std      364*0.1 //STD dev of mature period 
+constexpr double MATURE_PERIOD_MEAN       = 364*5;   //mean mature period
+constexpr double MATURE_PERIOD_MEAN_STD   = 364*0.1; //STD dev of mature period
 
-#define proportion_male_worm        0.5 //proportion of worms that are male
-#define proportion_male_agent       0.5 //proportion of agents that are male 
+constexpr double PROPORTION_MALE_WORM  = 0.5; //proportion of worms that are male
+constexpr double PROPORTION_MALE_AGENT = 0.5; //proportion of agents that are male
 
-#define n_age_groups                16 //number of age brackets (for seeding pop)
+// Potential improvement: infer number of age groups from pop_age_dists.csv?
+constexpr int N_AGE_GROUPS    = 16; //number of 5-year age brackets (for seeding pop)
+constexpr int WIDTH_AGE_GROUPS = 5; // 0-4, 5-9, ... 75-79
 
-#define sim_years                   21 // 21 when not abc fitting //defining prob functions that are used
+constexpr int SIM_YEARS = 21; // 21 when not abc fitting
 
-#define max_init_age                80 //maximum age of agent upon init
+constexpr double INIT_PREV_MIN = 3.15;  // Minimum initial antigen prev
+constexpr double INIT_PREV_MAX = 3.35;  // Maximum initial antigen prev
 
-#define init_prev_min               3.15 //minimum initial antigen prev
-#define init_prev_max               3.35 //maximum initial antigen prev
+constexpr double INIT_RATIO_MIN = 0.155;
+constexpr double INIT_RATIO_MAX = 0.175;
 
-#define init_ratio_min              0.155
-#define init_ratio_max              0.175
+constexpr double ANT_0  = 0.0325;   // Initial antigen prev
+constexpr double SIGMA_G = 1.1311;  // Household standard dev
+constexpr double BETA_0  = -3.9515; // For seeding somehow..
 
-#define ant_0                       0.0325 //initial antigen prev
-#define sigma_g                     1.1311//Household standard dev
-#define beta_0                      -3.9515//beta_0
-       
-#define start_year                  2010 //model starting year
+constexpr int START_YEAR = 2010; // Model starting year
 
-#define commuting_prop              0.5 //proportion of group that commut daily (over 5 years old)
-#define recalc_years                100 //how often we want to recalc commuters
-#define distance_type               'r' // r for road distance, e for euclidean
-#define DailyProbLoseAntigen        0.992327946   //set so the half-life is 90 days i.e. pow(0.5,1/90)
+constexpr double COMMUTING_PROP      = 0.5;          //proportion of group that commute daily (over 5 years old)
+constexpr int    RECALC_YEARS        = 100;           //how often we want to recalc commuters
+constexpr char   DISTANCE_TYPE       = 'r';           // r for road distance, e for euclidean
+constexpr double DAILY_PROB_LOSE_ANT = 0.992327946;  //set so the half-life is 90 days i.e. pow(0.5,1/90)
 
-#define ABC_fitting                 false
+// ABC_FITTING must remain a #define — it is used in a preprocessor #if directive
+#define ABC_FITTING false
 
-#define run_off_fitted              false
+constexpr bool RUN_OFF_FITTED = false;
 
 double random_real();
 double normal(double mean, double stddev);
@@ -57,31 +58,31 @@ double bite_gamma(double shape, double scale);
 double init_beta(double a, double b); 
 void partial_shuffle(vector<double>& vec, int start, int end);
 
-#if ABC_fitting || ABC_fitting_init
-    #define datadir "../LF2/data/"
-    #define outdir ""
-    #define config "../LF2/$config/"
-    #define config_pop "../LF2/$config/pop/"
-    #define Tran_param "TranParams-temp"
+#if ABC_FITTING || ABC_fitting_init
+    #define DATADIR "../LF2/data/"
+    #define OUTDIR ""
+    #define CONFIG "../LF2/$config/"
+    #define CONFIG_POP "../LF2/$config/pop/"
+    #define TRAN_PARAM "TranParams-temp"
 #else
-    #define datadir "../data/"
-    #define outdir "../output/"
-    #define config "../$config/"
-    #define config_pop "../$config/pop/"
-    #define Tran_param "TranParams.csv"
+    #define DATADIR "../data/"
+    #define OUTDIR "../output/"
+    #define CONFIG "../$config/"
+    #define CONFIG_POP "../$config/pop/"
+    #define TRAN_PARAM "TranParams.csv"
 #endif
 
-#define group_data                  "groups.csv"
+#define GROUP_DATA                  "groups.csv"
 
-#define exposure_age                "exposure_age.csv"
+#define EXPOSURE_AGE                "exposure_age.csv"
 
-#define birth_file                  "birth_rates.csv"
-#define mortality_file              "mortality_rates.csv"
-#define age_brackets                "pop_age_dist.csv"
+#define BIRTH_FILE                  "birth_rates.csv"
+#define MORTALITY_FILE              "mortality_rates.csv"
+#define AGE_BRACKETS                "pop_age_dist.csv"
 
-#define crow_distance               "euc_dist.csv"
-#define car_distance                "road_dist.csv"
+#define CROW_DISTANCE               "euc_dist.csv"
+#define CAR_DISTANCE                "road_dist.csv"
 
-#define MDA_params                  "MDAParams.csv"
-#define Init_params                 "InitParams.csv"
+#define MDA_PARAMS                  "MDAParams.csv"
+#define INIT_PARAMS                 "InitParams.csv"
 #endif /* headers_h */

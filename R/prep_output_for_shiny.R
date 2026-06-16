@@ -25,8 +25,8 @@ prep_csv_for_shiny <- function(group_type, filename) {
   locations$lat <- st_coordinates(locs_sf)[, "Y"]
 
   out |>
-    mutate(Time = Year + Day / 365) |>
-    select(SimulationNumber, Time, matches("^mf_\\d+$"), matches("^pop_\\d+$")) |>
+    mutate(Time = year + day / 365) |>
+    select(sim_i, Time, matches("^mf_\\d+$"), matches("^pop_\\d+$")) |>
     # Pivot mf_ and pop_ together so mf_G is always paired with pop_G
     pivot_longer(
       cols = c(matches("^mf_\\d+$"), matches("^pop_\\d+$")),

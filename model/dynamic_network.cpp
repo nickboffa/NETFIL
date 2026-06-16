@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <algorithm>
 
-void Region::implement_MDA(int year, MDAStrat strat){
+void Region::implement_mda(int year, MDAStrat strat){
     int n_pop = 0;
     int n_treated = 0;
     int n_under_min = 0;
@@ -33,7 +33,7 @@ void Region::implement_MDA(int year, MDAStrat strat){
             
             double age = k->second->age/365.0; // agent's age
             if(age >= strat.min_age){
-                if(random_real() <= strat.Coverage/(double)target_prop){
+                if(random_real() <= strat.coverage/(double)target_prop){
                     ++n_treated;
                     k->second->mda(strat.drug);
                 }
@@ -45,14 +45,14 @@ void Region::implement_MDA(int year, MDAStrat strat){
     achieved_coverage[year] = n_treated/(double)n_pop;
 }
 
-void Region::handl_commute(int year){
+void Region::handle_commute(int year){
     
     //firstly need to clear previous storage
    
-    if (year % recalc_years == 0){    
+    if (year % RECALC_YEARS == 0){    
         
         if (groups.size() > 1){
-            radt_model(distance_type); //generating commuting network
+            radt_model(DISTANCE_TYPE); //generating commuting network
             for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //now using the network
                 Group *grp = j->second;
                 int no_commute_id = grp->gid;
@@ -205,7 +205,7 @@ void Region::update_epi_status(int year, int day, int dt){
 
         if(p->status != 'E'){ //agent has left this stage of infection
 
-            p->ChangedEpiToday = true;
+            p->changed_epi_today = true;
             
             pre_indiv.erase(j++);
 
@@ -224,14 +224,14 @@ void Region::update_epi_status(int year, int day, int dt){
         
         Agent *p = j->second;
 
-        if(!p->ChangedEpiToday) p->update(year, day,dt);
+        if(!p->changed_epi_today) p->update(year, day,dt);
 
-        else p->ChangedEpiToday = false;
+        else p->changed_epi_today = false;
 
         if(p->status != 'U'){
             uninf_indiv.erase(j++);
             if(p->status == 'I'){
-                p->ChangedEpiToday = true;
+                p->changed_epi_today = true;
                 inf_indiv.insert(pair<int, Agent*>(p->aid, p));
             }
             else if(p->status == 'E'){
@@ -243,8 +243,8 @@ void Region::update_epi_status(int year, int day, int dt){
 
     for(map<int, Agent*>::iterator j = inf_indiv.begin(); j != inf_indiv.end();){
         Agent *p = j->second;
-        if(!p->ChangedEpiToday) p->update(year, day,dt);
-        else p->ChangedEpiToday = false;
+        if(!p->changed_epi_today) p->update(year, day,dt);
+        else p->changed_epi_today = false;
         if(p->status != 'I'){
             inf_indiv.erase(j++);
             if(p->status == 'E'){
@@ -306,7 +306,7 @@ void Region::remove_agent(Agent *p){
     delete p;
 }
 
-void Region::hndl_birth(int year, int day, int dt){ //deal with births
+void Region::handle_birth(int year, int day, int dt){ //deal with births
     
     int total_births  = 0;
 

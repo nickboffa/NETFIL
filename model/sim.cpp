@@ -15,7 +15,7 @@ void Region::sim(int year, MDAStrat strat){
         init_prev = 0;
         init_ratio  = 0;
         // Keep seeding until prev and ratio within bounds
-        while(((init_prev < init_prev_min) || (init_prev > init_prev_max)) || ((init_ratio < init_ratio_min) || (init_ratio > init_ratio_max))){
+        while(((init_prev < INIT_PREV_MIN) || (init_prev > INIT_PREV_MAX)) || ((init_ratio < INIT_RATIO_MIN) || (init_ratio > INIT_RATIO_MAX))){
             seed_lf();
         }
         
@@ -29,7 +29,7 @@ void Region::sim(int year, MDAStrat strat){
     }
     
     else{
-        handl_commute(year);
+        handle_commute(year);
         achieved_coverage[year] = 0;
 
 
@@ -48,14 +48,14 @@ void Region::sim(int year, MDAStrat strat){
         
             if (day % population_dt == 0){
                 renew_pop(year, day, population_dt); //deaths
-                hndl_birth(year, day, population_dt); //births
+                handle_birth(year, day, population_dt); //births
             }
 
-            if((strat.is_mda_year(year+start_year)) && (day == 28)){
-                implement_MDA(year,strat);
+            if((strat.is_mda_year(year+START_YEAR)) && (day == 28)){
+                implement_mda(year,strat);
             } 
         
-            if ((day % 91 == 0) && (!ABC_fitting) && (day != 364)){
+            if ((day % 91 == 0) && (!ABC_FITTING) && (day != 364)){
                 output_epidemics(year, day, strat); 
             }
                 
@@ -67,41 +67,41 @@ void Region::seed_lf(){
     reset_prev();
     double ant_pos = 0;
 
-    string filename = datadir;
+    string filename = DATADIR;
     filename  = filename + "initaggs.csv";
     ifstream file(filename);
     string line;
-    vector<double> Init_prev, Init_k;
+    vector<double> init_prev_table, init_k_table;
 
     double minDifference = 1;
     int closestIndex = -1;
 
     double ki; //init agg to get correct ant to mf prevalence
     double in_agg; //inverse init agg used in calcs oftern
-    double Mean_load; //mean worm burden in group
+    double mean_load; //mean worm burden in group
 
     while (getline(file, line)) {
         stringstream ss(line);
         string valueA, valueB;
         getline(ss, valueA, ',');
         getline(ss, valueB, ',');
-        Init_prev.push_back(stod(valueA));
-        Init_k.push_back(stod(valueB));
+        init_prev_table.push_back(stod(valueA));
+        init_k_table.push_back(stod(valueB));
     }
     vector<double> bite_scales {};
     file.close();
-    for (int i = 0; i < Init_prev.size(); ++i) { //now given the prev we are finding the init aggregation from values we have calculated previously (finding the roots here was too intensive so I found them previously in mathematica and included them here)
-        double difference = abs(Init_prev[i] - ant_0);
+    for (int i = 0; i < init_prev_table.size(); ++i) { //now given the prev we are finding the init aggregation from values we have calculated previously (finding the roots here was too intensive so I found them previously in mathematica and included them here)
+        double difference = abs(init_prev_table[i] - ANT_0);
         if (difference < minDifference) {
             minDifference = difference;
             closestIndex = i;
         }
     }
 
-    ki = Init_k[closestIndex];
+    ki = init_k_table[closestIndex];
     in_agg = 1.0 / ki;
-    Mean_load = ki*(1-pow((1-ant_0),in_agg))/pow((1-ant_0),in_agg);
-    prob_worms(ki, Mean_load); 
+    mean_load = ki*(1-pow((1-ANT_0),in_agg))/pow((1-ANT_0),in_agg);
+    prob_worms(ki, mean_load); 
 
     //iterating over groups
     for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){
@@ -110,53 +110,31 @@ void Region::seed_lf(){
         Group *grp = j->second;
 
         if (groups.size() > 1){ //for multiple groups we need to determine antigen prev which is clustered at the group level
-            double group_effect = normal(0.0,sigma_g);
-            double group_log_odds = group_effect + beta_0;
+            double group_effect = normal(0.0,SIGMA_G);
+            double group_log_odds = group_effect + BETA_0;
             group_prev = 1/(1+exp(-group_log_odds));
-        
-            //if (group_prev > 0.48){ //ensuring there is a maximum group prev (rarely hits this but is important to include)
-              //  group_prev = 0.48;
-            //};
-        }else{
-            group_prev = ant_0; //for single groups we already know the prev!
+        } else {
+            group_prev = ANT_0; //for single groups we already know the prev!
         }
 
-        //cout << group_prev << endl;
         for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){
             Agent *cur = k->second;
             cur->ngp = grp; //assigning night group
-             //draw an agents initial bite_scale
-            /*
-            double agent_running_agg;
-            double agent_init_agg;
-            if (agg_param < ki){ //region has been seeded with a high init prevalence then we base init on running
-                agent_running_agg = bite_gamma(agg_param,1);
-                agent_init_agg = agent_running_agg + bite_gamma((ki - agg_param),1);
-                agent_running_agg *= agg_scale;
-            }else{ //we base running on init!
-                agent_init_agg = bite_gamma(ki,1);
-                agent_running_agg =  agg_scale*(agent_init_agg + bite_gamma((agg_param-ki),1)); //drawing the agents running scale which is determined by input
-            }
-        
-            cur->bite_scale = agent_running_agg;  
-
-            int worm_count = poisson(in_agg*agent_init_agg*Mean_load); //the number of worms */
             bite_scales.push_back(cur->bite_scale);
-            //int worm_count = poisson(bite_gamma(ki,in_agg)*Mean_load);
 
-            if(random_real() < group_prev){// person has adult worms
+            if(random_real() < group_prev){ // person has adult worms
             
                 int worm_count = n_worms();
                
                 ++ant_pos;
-                int wm = 0; //male worms
-                int wf = 0; //female worms
+                int wm = 0; // male worms
+                int wf = 0; // female worms
                 for(int i = 1; i <= worm_count; ++ i){
                     double mature_period;
                   
-                    mature_period = (1-init_beta(1,init_beta_b))*normal(mature_period_mean,mature_period_mean_std);
+                    mature_period = (1-init_beta(1,init_beta_b))*normal(MATURE_PERIOD_MEAN, MATURE_PERIOD_MEAN_STD);
                     
-                    if(random_real() < proportion_male_agent){ //has one male mature
+                    if(random_real() < PROPORTION_MALE_AGENT){ //has one male mature
                         cur->wvec.push_back(new Worm('M', 0, mature_period ,'M'));
                         ++wm;
                     }
@@ -181,10 +159,10 @@ void Region::seed_lf(){
                     n_worms = max(poisson(init_poisson),1);
                 
                     for(int i = 1; i <= n_worms; ++ i){ 
-                        double immature_period = (1-init_beta(1,init_beta_b))*normal(immature_period_mean,immature_period_mean_std);
-                        double mature_period = normal(mature_period_mean,mature_period_mean_std);
+                        double immature_period = (1-init_beta(1,init_beta_b))*normal(IMMATURE_PERIOD_MEAN,IMMATURE_PERIOD_MEAN_STD);
+                        double mature_period = normal(MATURE_PERIOD_MEAN,MATURE_PERIOD_MEAN_STD);
 
-                        if(random_real() < proportion_male_worm){
+                        if(random_real() < PROPORTION_MALE_WORM){
                             cur->wvec.push_back(new Worm('P', random_real()*immature_period, mature_period ,'M'));
                         }
                         else{
@@ -202,10 +180,10 @@ void Region::seed_lf(){
                 n_worms = max(poisson(init_poisson),1);
                 
                 for(int i = 1; i <= n_worms; ++ i){ 
-                    double immature_period = (1-init_beta(1,init_beta_b))*normal(immature_period_mean,immature_period_mean_std);
-                    double mature_period = normal(mature_period_mean,mature_period_mean_std);
+                    double immature_period = (1-init_beta(1,init_beta_b))*normal(IMMATURE_PERIOD_MEAN,IMMATURE_PERIOD_MEAN_STD);
+                    double mature_period = normal(MATURE_PERIOD_MEAN,MATURE_PERIOD_MEAN_STD);
 
-                    if(random_real() < proportion_male_worm){
+                    if(random_real() < PROPORTION_MALE_WORM){
                         cur->wvec.push_back(new Worm('P', random_real()*immature_period, mature_period ,'M'));
                     }
                     else{
