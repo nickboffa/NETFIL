@@ -16,7 +16,7 @@ int main(int argc, const char * argv[]){
     time_t start_time = time(nullptr);
     prv_out_loc = argv[1];
    
-    region *rgn = new region(region_id, region_name);
+    Region *rgn = new Region(region_id, region_name);
     
     string mda_data = string(datadir) + MDA_params; // Both are #define macros
 
@@ -28,7 +28,7 @@ int main(int argc, const char * argv[]){
     for (int scenario_count = 0; scenario_count < MDAScenario_count; ++scenario_count){
 
         //generating mda strategy!
-        mda_strat strategy = get_mda_strat(mda_data, scenario_count + 1);
+        MDAStrat strategy = get_mda_strat(mda_data, scenario_count + 1);
 
         //Now looping over simulations
          for (int i = 0; i < strategy.NumSims; ++i){

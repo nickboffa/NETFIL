@@ -7,10 +7,10 @@
 
 using namespace std;
 
-class group;                           //groups of people akin to villages
-class region;                          //region which is comprised of the groups!
+class Group;                           //groups of people akin to villages
+class Region;                          //region which is comprised of the groups!
 
-class group{
+class Group{
 public:
 
     int gid;                           //Group ID
@@ -22,10 +22,10 @@ public:
     double night_bites;
 
     double lat, lon;                    //latitude & longitude
-    region *rgn;                       //region!
+    Region *rgn;                       //region!
     double sum_mf;                      //NEED TO DEFINE
 
-    map<int, agent*> group_pop;       //group population (out of work hours)
+    map<int, Agent*> group_pop;       //group population (out of work hours)
 
     //commuting data
     struct c_node{ //used to store distances to all other groups from current group
@@ -39,19 +39,19 @@ public:
     vector<c_node*> commuting_dist; //storing the distances
     map<int, double> commuting_pop; //the prop of commuters from each location
     map<int,double> commuting_cumsum; //cumsum of commuters from each location
-    map<int, agent*> day_population;    //the commuters to current group! and agents from group that did not commute!
+    map<int, Agent*> day_population;    //the commuters to current group! and agents from group that did not commute!
 
-    void add_member(agent *p);
-    void rmv_member(agent *p);
+    void add_member(Agent *p);
+    void rmv_member(Agent *p);
     
     void bld_group_pop();  //build initial population
   
 
-    group(int gid, region *rgn, double lat, double lon);
-    ~group();
+    Group(int gid, Region *rgn, double lat, double lon);
+    ~Group();
 };
 
-class region{
+class Region{
 public:
     int rid;                           //region ID 
     string rname;                      //region name                   
@@ -82,15 +82,15 @@ public:
     int age_dist_lower[n_age_groups];
     int age_dist_upper[n_age_groups];
     //used to keep track of total population for easy analysis
-    map<int, agent*> pre_indiv;        //collection of immautre worms individuals
-    map<int, agent*> inf_indiv;        //collection ofinfectious individuals
-    map<int, agent*> uninf_indiv;      //collection of peple with adult worms but are uninfectious individuals (single gender or sterile)
-    map<int, agent*> no_worms_indiv;   //collection of people with no worms!
-    vector<agent*> pvec[n_age_groups]; //storing all people of certain age group
+    map<int, Agent*> pre_indiv;        //collection of immautre worms individuals
+    map<int, Agent*> inf_indiv;        //collection ofinfectious individuals
+    map<int, Agent*> uninf_indiv;      //collection of peple with adult worms but are uninfectious individuals (single gender or sterile)
+    map<int, Agent*> no_worms_indiv;   //collection of people with no worms!
+    vector<Agent*> pvec[n_age_groups]; //storing all people of certain age group
     vector<double> cum_sum_prob_worm {};
     //now all the information about the groups
     int next_gid, group_blocks;
-    map<int, group*> groups;            //storing all groups in region
+    map<int, Group*> groups;            //storing all groups in region
     map<string, int> group_names;       //each group assigned name to index
     map<int, string> group_numbers;     //each group assigned number to index
     map<int, double*> group_coords;     //coords of each group
@@ -115,12 +115,12 @@ public:
     double achieved_coverage[sim_years]; // the actual drug coverage achieved each year (for each year of the simulation). Will be zero for most years.
     int number_treated[sim_years];
 
-    region(int rid, string rname);
+    Region(int rid, string rname);
 
     //Functions that run on region
-    void sim(int year, mda_strat strategy);                     //wrapper to run simulation
+    void sim(int year, MDAStrat strategy);                     //wrapper to run simulation
     void handl_commute(int year);                               // generate commuter network and assign
-    void remove_agent(agent *p);                                   //remove dead people from population
+    void remove_agent(Agent *p);                                   //remove dead people from population
     void radt_model(char m);                                    //radiation model for daily trips (work/school)
     //void hndl_migrt(int day);                                //TODO long term migration between groups (to help avoid groups that have died out)
     void renew_pop(int year, int day, int dt);
@@ -130,7 +130,7 @@ public:
     void seed_lf();                                             //seed LF in population
     double mf_functional_form(char form, double worm_strength);            //converts worm strength to mf load
 
-    void implement_MDA(int year, mda_strat strat);           //MDA!
+    void implement_MDA(int year, MDAStrat strat);           //MDA!
     
     bool pop_reload();
     void read_groups();                                 //read input data
@@ -140,7 +140,7 @@ public:
 
     void reset_population();
     void reset_prev();
-    void output_epidemics(int year, int day, mda_strat strategy);    //output outbreak data
+    void output_epidemics(int year, int day, MDAStrat strategy);    //output outbreak data
     int factorial(int n);
     int n_worms();
     void prob_worms(double agg_param_init, double worm_mean);

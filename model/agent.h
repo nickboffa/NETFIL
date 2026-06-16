@@ -8,14 +8,14 @@
 using namespace std;
 
 //Classes that we need
-class group;
-class drugs;
-class mda_strat;
+class Group;
+class Drugs;
+class MDAStrat;
 
-class agent; //people in the model
-class worm; //worms!
+class Agent; //people in the model
+class Worm; //worms
 
-class worm{
+class Worm{
 public:
     char status; // stage the worm is in
     int age_immature; // immature age
@@ -24,7 +24,7 @@ public:
     double mda_sterile; // to track sterilisation from MDA
     char sex; // sex of the worm 
 
-    worm(char s, int ia, int ma, char sx){
+    Worm(char s, int ia, int ma, char sx){
         
         status = s;
         age_immature = ia;
@@ -38,7 +38,7 @@ public:
     void update(int dt);
 };
 
-class agent{
+class Agent{
 public:
     
     int aid; // agent's id
@@ -51,18 +51,18 @@ public:
 
     bool ChangedEpiToday;
 
-    group *dgp; //daytime group
-    group *ngp; //nightime group
+    Group *dgp; //daytime group
+    Group *ngp; //nightime group
     
-    vector<worm*> wvec;
+    vector<Worm*> wvec;
    
-    agent(int aid, double bite_shape, int age = -1);
+    Agent(int aid, double bite_shape, int age = -1);
 
-    ~agent();
+    ~Agent();
 
     void sim_bites(double c, double w2n, bool single);
     void update(int day, int year, int dt);
-    void mda(drugs drug);
+    void mda(Drugs drug);
 
 };
 

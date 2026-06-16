@@ -20,7 +20,7 @@ void write_netfil(
     const string& filename,
     time_t start_time,
     time_t end_time,
-    region *rgn,
+    Region *rgn,
     string mda_data
 ) {
     string basename = filename;
@@ -66,7 +66,7 @@ void write_netfil(
     write_section(netfil, "MDA parameters");
     int num_scenarios = count_mda_scenarios(mda_data);
     for (int i = 1; i <= num_scenarios; i++) {
-        mda_strat strategy = get_mda_strat(mda_data, i + 1);
+        MDAStrat strategy = get_mda_strat(mda_data, i + 1);
         write_value(netfil, "Strategy number", i);
         strategy.print_mda_strat(netfil);
         netfil << endl;
@@ -104,6 +104,8 @@ void write_netfil(
     write_section(netfil, "Miscellaneous parameters");
     write_value(netfil, "Sigma_g (household stdev)", sigma_g);
     write_value(netfil, "Beta_0", beta_0);
+    write_value(netfil, "Distance type (e euclidean, r road)", distance_type);
+    write_value(netfil, "Number of years till road network re-estimated", recalc_years);
        
     write_section(netfil, "TIMESTAMP");
     int duration = (int)difftime(end_time, start_time);

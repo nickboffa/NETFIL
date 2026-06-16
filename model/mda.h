@@ -6,15 +6,15 @@
 
 using namespace std;
 
-class mda_strat;
-class drugs;
+class MDAStrat;
+class Drugs;
 
 
 int count_mda_scenarios(string filename);
-mda_strat get_mda_strat(string filename, int N);
+MDAStrat get_mda_strat(string filename, int N);
 
 
-class drugs{ //Drug profile for MDA
+class Drugs{ //Drug profile for MDA
 public:
     double KillProb; // prob will kill worms
     double FullSterProb; // prob will fully sterilise
@@ -23,7 +23,7 @@ public:
     double PartSterMagnitude; //magnitude of partial sterilisation
 
     
-    drugs(double K=0.0, double FSP=0.0, double PSP=0.0, double SD=0.0, double PSM=0.0){
+    Drugs(double K=0.0, double FSP=0.0, double PSP=0.0, double SD=0.0, double PSM=0.0){
         KillProb = K;
         FullSterProb = FSP;
         PartSterProb = PSP;
@@ -41,10 +41,10 @@ public:
     
 };
 
-class mda_strat{
+class MDAStrat{
 public:
     double Coverage; //mda coverage
-    drugs drug; //drug profile
+    Drugs drug; //drug profile
     int min_age; //min age to take MDA
     int StartYear; //mda starty year
     int NumRounds; //number of rounds
@@ -52,7 +52,7 @@ public:
     vector<int> MDAYears; //vector storing all mda years
     int NumSims; //number of simulations
 
-    mda_strat(double C, drugs D, int MN, int S, int N, int Y, int NS){
+    MDAStrat(double C, Drugs D, int MN, int S, int N, int Y, int NS){
         Coverage = C;
         drug = D;
         min_age = MN;

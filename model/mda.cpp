@@ -24,7 +24,7 @@ int count_mda_scenarios(string filename){
     return MDAScenarioNum;
 }
 
-mda_strat get_mda_strat(string filename, int N)
+MDAStrat get_mda_strat(string filename, int N)
 {
     ifstream in;
     
@@ -63,14 +63,14 @@ mda_strat get_mda_strat(string filename, int N)
     delete []str;
     
     //creating drug profile
-    drugs drug {MDAKillProb, MDAFullSterProb, MDAPartSterProb, MDASterDur, MDAPartSterMagnitude};
+    Drugs drug {MDAKillProb, MDAFullSterProb, MDAPartSterProb, MDASterDur, MDAPartSterMagnitude};
    
     //creating mda strate
-    mda_strat strat {MDACoverage,drug, MinAge, MDAStartYear, MDANumRound, MDAYearsBetweenRound,NumSims};
+    MDAStrat strat {MDACoverage, drug, MinAge, MDAStartYear, MDANumRound, MDAYearsBetweenRound, NumSims};
 
     //printing MDA and drug stats
     //drug.print_drugs();
-    //strat.print_mda_strat();
+    //strat.print_mda_strat(cout);
 
     return strat;
 }

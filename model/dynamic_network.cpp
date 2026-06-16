@@ -3,18 +3,18 @@
 #include <cstdlib>
 #include <algorithm>
 
-void region::implement_MDA(int year, mda_strat strat){
+void Region::implement_MDA(int year, MDAStrat strat){
     int n_pop = 0;
     int n_treated = 0;
     int n_under_min = 0;
 
-    for(map<int, group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //for every group
+    for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //for every group
         
-        group *grp = j->second;
+        Group *grp = j->second;
         
         n_pop += grp->group_pop.size();
         
-        for(map<int, agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //for every person 
+        for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //for every person 
             
             double age = k->second->age/365.0; // agent's age
 
@@ -25,11 +25,11 @@ void region::implement_MDA(int year, mda_strat strat){
 
     double target_prop = 1 - n_under_min /(double)n_pop;
 
-    for(map<int, group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //for every group
+    for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //for every group
         
-        group *grp = j->second;
+        Group *grp = j->second;
         
-        for(map<int, agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //for all people 
+        for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //for all people 
             
             double age = k->second->age/365.0; // agent's age
             if(age >= strat.min_age){
@@ -45,7 +45,7 @@ void region::implement_MDA(int year, mda_strat strat){
     achieved_coverage[year] = n_treated/(double)n_pop;
 }
 
-void region::handl_commute(int year){
+void Region::handl_commute(int year){
     
     //firstly need to clear previous storage
    
@@ -53,17 +53,17 @@ void region::handl_commute(int year){
         
         if (groups.size() > 1){
             radt_model(distance_type); //generating commuting network
-            for(map<int, group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //now using the network
-                group *grp = j->second;
+            for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //now using the network
+                Group *grp = j->second;
                 int no_commute_id = grp->gid;
                 double commuter_prop = grp->total_commute / (double) grp->group_pop.size();
                 //now iterating over all group members
-                for(map<int, agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){
-                    agent *cur = k->second; //our agent
+                for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){
+                    Agent *cur = k->second; //our agent
                     
                     double cum_sum_floor = 0;
                     if(random_real() > commuter_prop){ //Will not commute!
-                        grp->day_population.insert(pair<int, agent*>(cur->aid, cur)); //storing them in current group for day population
+                        grp->day_population.insert(pair<int, Agent*>(cur->aid, cur)); //storing them in current group for day population
                         cur->dgp = groups[no_commute_id];
                     } 
                     else{ //person will commute
@@ -75,7 +75,7 @@ void region::handl_commute(int year){
                             if ((cum_sum_floor < commute_dest) && (commute_dest <= i->second)){
                                 commute_id = i->first;
                                 cur->dgp = groups[commute_id]; //assigning agent to day group
-                                groups[commute_id]->day_population.insert(pair<int, agent*>(cur->aid, cur)); //storing them in commuting group for day population
+                                groups[commute_id]->day_population.insert(pair<int, Agent*>(cur->aid, cur)); //storing them in commuting group for day population
                                 goto found_commute;
                             } 
                             else {
@@ -92,13 +92,13 @@ void region::handl_commute(int year){
     }
     
     rpop = 0;
-    for(map<int, group*>::iterator j = groups.begin(); j != groups.end(); ++j){
-        group *grp = j->second;   
+    for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){
+        Group *grp = j->second;   
         rpop += grp->group_pop.size();
     }
 }
 
-void region::calc_risk(){
+void Region::calc_risk(){
     
     char form = 'l'; //l for limitation, f for facilation, or anything else for linear 
     bool single = false;
@@ -107,8 +107,8 @@ void region::calc_risk(){
         single = true;
     }
 
-    for(map<int, group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //setting the force of transmission in each group to 0
-        group *grp = j->second;
+    for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //setting the force of transmission in each group to 0
+        Group *grp = j->second;
         
         grp->day_strength = 0;
         grp->night_strength = 0;
@@ -117,16 +117,16 @@ void region::calc_risk(){
         double db = 0;
         double nb = 0;
 
-        for(map<int, agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){
-            agent *cur =k->second;
+        for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){
+            Agent *cur =k->second;
             int age = int(cur->age / 365);
             double c = 1.0;
             if(age <= 15) c = exposure_by_age[age];
             nb += cur->bite_scale*c;    
         }
         if(!single){
-            for(map<int, agent*>::iterator k = grp->day_population.begin(); k != grp->day_population.end(); ++k){
-                agent *cur =k->second;
+            for(map<int, Agent*>::iterator k = grp->day_population.begin(); k != grp->day_population.end(); ++k){
+                Agent *cur =k->second;
                 int age = int(cur->age / 365);
                 double c = 1.0;
                 if(age <= 15) c = exposure_by_age[age];
@@ -141,10 +141,10 @@ void region::calc_risk(){
     }
     //Finding strength of infection in each group
     //now looping over all infected agents
-    for(map<int, agent*>::iterator j = inf_indiv.begin(); j != inf_indiv.end(); ++j){
+    for(map<int, Agent*>::iterator j = inf_indiv.begin(); j != inf_indiv.end(); ++j){
         
-        agent *cur =j->second;
-        group *ngrp = cur->ngp; //infected agents nightime group
+        Agent *cur =j->second;
+        Group *ngrp = cur->ngp; //infected agents nightime group
 
         int age = int(cur->age / 365);
         double c = 1.0;
@@ -154,20 +154,20 @@ void region::calc_risk(){
         ngrp->night_strength += (c*cur->bite_scale*mf_functional_form(form, j->second->worm_strength)) / ngrp->night_bites;
         
         if(!single){
-            group *dgrp = cur->dgp; //infected agents daytime group
+            Group *dgrp = cur->dgp; //infected agents daytime group
             dgrp->day_strength += (c*cur->bite_scale*mf_functional_form(form, j->second->worm_strength)) / dgrp->day_bites;
         }
     }
 
     //Now finding infective bites
     
-    for(map<int, group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //looping over groups
-        group *grp = j->second;
+    for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //looping over groups
+        Group *grp = j->second;
         //looping over all people!
         
-        for(map<int, agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //looping over all people will do both night and day bites in same loop
+        for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //looping over all people will do both night and day bites in same loop
         
-            agent *cur = k->second; //our person
+            Agent *cur = k->second; //our person
             char prev_status = cur ->status;
             double c = 1; //
             int age = int(cur->age / 365);
@@ -176,13 +176,13 @@ void region::calc_risk(){
             cur->sim_bites(c, worktonot, single); // simulating the bites!
 
             if(cur->status == 'E' && prev_status == 'S'){
-                pre_indiv.insert(pair<int, agent *>(cur->aid, cur));
+                pre_indiv.insert(pair<int, Agent *>(cur->aid, cur));
             }
         }
     }
 }
 
-double region::mf_functional_form(char form, double worm_strength){
+double Region::mf_functional_form(char form, double worm_strength){
     if(form == 'l'){ // limitation
        
         return theta1*theta3*(1-exp(-theta2*worm_strength));
@@ -196,11 +196,11 @@ double region::mf_functional_form(char form, double worm_strength){
     }
 }
 
-void region::update_epi_status(int year, int day, int dt){
+void Region::update_epi_status(int year, int day, int dt){
 
-    for(map<int, agent*>::iterator j = pre_indiv.begin(); j != pre_indiv.end();){ //looking at all agents with immature worms but not a set!
+    for(map<int, Agent*>::iterator j = pre_indiv.begin(); j != pre_indiv.end();){ //looking at all agents with immature worms but not a set!
 
-        agent *p = j->second;
+        Agent *p = j->second;
         p->update(year,day,dt);
 
         if(p->status != 'E'){ //agent has left this stage of infection
@@ -210,19 +210,19 @@ void region::update_epi_status(int year, int day, int dt){
             pre_indiv.erase(j++);
 
             if(p->status == 'I'){ //infective now!
-                inf_indiv.insert(pair<int, agent*>(p->aid, p));
+                inf_indiv.insert(pair<int, Agent*>(p->aid, p));
             }
             else if(p->status == 'U'){ //do not have a set of mature worms!
-                uninf_indiv.insert(pair<int, agent*>(p->aid, p));
+                uninf_indiv.insert(pair<int, Agent*>(p->aid, p));
             }
         }
         else ++j;
     }
            
 
-    for(map<int, agent*>::iterator j = uninf_indiv.begin(); j != uninf_indiv.end();){ //looking at all agents with onlymature immature worms!
+    for(map<int, Agent*>::iterator j = uninf_indiv.begin(); j != uninf_indiv.end();){ //looking at all agents with onlymature immature worms!
         
-        agent *p = j->second;
+        Agent *p = j->second;
 
         if(!p->ChangedEpiToday) p->update(year, day,dt);
 
@@ -232,26 +232,26 @@ void region::update_epi_status(int year, int day, int dt){
             uninf_indiv.erase(j++);
             if(p->status == 'I'){
                 p->ChangedEpiToday = true;
-                inf_indiv.insert(pair<int, agent*>(p->aid, p));
+                inf_indiv.insert(pair<int, Agent*>(p->aid, p));
             }
             else if(p->status == 'E'){
-                pre_indiv.insert(pair<int, agent*>(p->aid, p));
+                pre_indiv.insert(pair<int, Agent*>(p->aid, p));
             }
         }
         else ++j;
     }
 
-    for(map<int, agent*>::iterator j = inf_indiv.begin(); j != inf_indiv.end();){
-        agent *p = j->second;
+    for(map<int, Agent*>::iterator j = inf_indiv.begin(); j != inf_indiv.end();){
+        Agent *p = j->second;
         if(!p->ChangedEpiToday) p->update(year, day,dt);
         else p->ChangedEpiToday = false;
         if(p->status != 'I'){
             inf_indiv.erase(j++);
             if(p->status == 'E'){
-                pre_indiv.insert(pair<int, agent*>(p->aid, p));
+                pre_indiv.insert(pair<int, Agent*>(p->aid, p));
             }
             else if(p->status == 'U'){
-                uninf_indiv.insert(pair<int, agent*>(p->aid, p));
+                uninf_indiv.insert(pair<int, Agent*>(p->aid, p));
             }
         }
         else ++j;
@@ -259,15 +259,15 @@ void region::update_epi_status(int year, int day, int dt){
 
 }
 
-void region::renew_pop(int year, int day, int dt){
+void Region::renew_pop(int year, int day, int dt){
     //handleing deaths!
-    vector<agent*> deaths;
+    vector<Agent*> deaths;
 
-    for(map<int, group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //going through groups
-        group *grp = j->second;
+    for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //going through groups
+        Group *grp = j->second;
 
-        for(map<int, agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //going through group members
-            agent *cur = k->second;
+        for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //going through group members
+            Agent *cur = k->second;
             int index = int(int(cur->age/365)/5);
             if(index > 15) index = 15; //all 75+ the same
 
@@ -277,13 +277,13 @@ void region::renew_pop(int year, int day, int dt){
         }
     }
     while(deaths.size() > 0){ //now removing agents that have died
-        agent *cur = deaths.back();
+        Agent *cur = deaths.back();
         remove_agent(cur);
         deaths.pop_back();
     }       
 }
 
-void region::remove_agent(agent *p){
+void Region::remove_agent(Agent *p){
 
     //removing agent from lists of infected
    
@@ -293,12 +293,12 @@ void region::remove_agent(agent *p){
     
     
     //nightime group    
-    group *ngrp = p->ngp;
+    Group *ngrp = p->ngp;
     ngrp->group_pop.erase(p->aid);
     
     if (groups.size() >1 ){
         //daytime group
-        group *dgrp = p->dgp;
+        Group *dgrp = p->dgp;
         dgrp->day_population.erase(p->aid);
     }
    
@@ -306,15 +306,15 @@ void region::remove_agent(agent *p){
     delete p;
 }
 
-void region::hndl_birth(int year, int day, int dt){ //deal with births
+void Region::hndl_birth(int year, int day, int dt){ //deal with births
     
     int total_births  = 0;
 
-    for(map<int,group*>::iterator j = groups.begin(); j != groups.end(); j++){//looping over groups
-        group *grp = j->second;
-        for(map<int, agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){//over agents
+    for(map<int,Group*>::iterator j = groups.begin(); j != groups.end(); j++){//looping over groups
+        Group *grp = j->second;
+        for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){//over agents
            
-            agent *cur = k->second;
+            Agent *cur = k->second;
             if(cur->age >= 15*365 && cur->age < 50*365){
                 int index = int((int(cur->age/365))/5);
                 double prob = 1 - exp(-birth_rate[index]*dt);
@@ -325,11 +325,11 @@ void region::hndl_birth(int year, int day, int dt){ //deal with births
         }
         //now assigning births
         while (total_births > 0) {
-            agent *bb = new agent(next_aid++, agg_param, 0); //have birth!
+            Agent *bb = new Agent(next_aid++, agg_param, 0); //have birth!
             bb->ngp = grp;
             bb->dgp = grp;
             grp->add_member(bb); //assigning baby to group
-            grp->day_population.insert(pair<int, agent*>(bb->aid, bb));//assume baby stays within group during day
+            grp->day_population.insert(pair<int, Agent*>(bb->aid, bb));//assume baby stays within group during day
             
             --total_births;
         }

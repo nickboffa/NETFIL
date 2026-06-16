@@ -6,8 +6,8 @@
 
 using namespace std;
 
-//constructer of region
-region::region(int rid, string rname){
+//constructer of Region
+Region::Region(int rid, string rname){
     this->rid = rid; //region id
     this->rname = rname;
 
@@ -50,14 +50,14 @@ region::region(int rid, string rname){
         out << group_blocks << endl; //number of groups
 
         //saving village names/numbers and locations
-        for(map<int, group*>::iterator j = groups.begin(); j != groups.end(); ++j){
+        for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){
             out << j->first << "," << group_numbers[j->first] << "," << j->second->lon << "," << j->second->lat << endl;
         }
         out.close();
 
         //now saving group data, group by group! 
-        for(map<int, group*>::iterator j = groups.begin(); j != groups.end(); ++j){
-            group *grp = j->second; //individual group data
+        for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){
+            Group *grp = j->second; //individual group data
 
             string grp_str = group_numbers[grp->gid]; //group name
 
@@ -68,8 +68,8 @@ region::region(int rid, string rname){
             out << "ID,age" << endl;
 
             //iterating over agents!
-            for(map<int, agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){
-                agent *cur = k->second;
+            for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){
+                Agent *cur = k->second;
                 out << cur->aid << "," << cur->age << endl;
             }
             out.close();
@@ -80,7 +80,7 @@ region::region(int rid, string rname){
 
 }
 
-bool region::pop_reload(){
+bool Region::pop_reload(){
 
     //checking if we have already generated the input!
     string file = config;   file = file + rname;    file = file + ".init";
@@ -108,13 +108,13 @@ bool region::pop_reload(){
         
         group_names.insert(pair<string, int>(grp, id));
         group_numbers.insert(pair<int, string>(id, grp));
-        groups.insert(pair<int, group*>(id, new group(id, this, lat, lon)));
+        groups.insert(pair<int, Group*>(id, new Group(id, this, lat, lon)));
         
         delete []str;
     }
     in.close();
     
-    for(map<int, group*>::iterator j = groups.begin(); j != groups.end(); ++j){
+    for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){
         string grp_str = group_numbers[j->first];
         
         file = config_pop;   file = file + grp_str;   file = file + "_pop.init";
@@ -129,7 +129,7 @@ bool region::pop_reload(){
             char *p = std::strtok(str, ",");        int id = atoi(p);
             p = std::strtok(NULL, ",");             int age = atoi(p);
             
-            agent *pp = new agent(id, agg_param, age);
+            Agent *pp = new Agent(id, agg_param, age);
 
             j->second->add_member(pp);
             
@@ -141,7 +141,7 @@ bool region::pop_reload(){
     return true;
 }
 
-void region::read_groups(){
+void Region::read_groups(){
     //function to read in group info!
 
     ifstream in;
@@ -203,24 +203,24 @@ void region::read_groups(){
     }
 }
 
-void region::bld_groups(){
+void Region::bld_groups(){
     for(map<int, double*>::iterator j = group_coords.begin(); j != group_coords.end(); ++j){
         int gid = j->first;
         double lat = j->second[0], log = j->second[1];
-        groups.insert(pair<int, group*>(gid, new group(gid, this, lat, log)));
+        groups.insert(pair<int, Group*>(gid, new Group(gid, this, lat, log)));
     }
 }
 
-void region::bld_region_population(){
+void Region::bld_region_population(){
 
     //going village by village
-    for(map<int, group*>::iterator j = groups.begin(); j != groups.end(); ++j){
-        group *grp = j->second;
+    for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){
+        Group *grp = j->second;
         grp->bld_group_pop();
     }
 }
 
-void region::read_parameters(){
+void Region::read_parameters(){
     
     ifstream in;
     string line, file;
@@ -285,8 +285,9 @@ void region::read_parameters(){
     }
     in.close();
 
-    //reading road_dst & euclid_dst for multigroup sims!
-    if (group_blocks > 1){
+    // Reading road_dst & euclid_dst for multigroup sims
+    // Only if hasn't been loaded yet
+    if (road_dst == nullptr && group_blocks > 1) {
         int len = group_blocks*(group_blocks-1)/2;
         cout << "BUILDING ROADS" <<endl;
         road_dst = new double[len];     memset(road_dst, 0, sizeof(double)*len);
@@ -512,7 +513,6 @@ void region::read_parameters(){
             else {
                 worktonot = 0.1; 
             }
-
         }
     }
 
@@ -538,14 +538,14 @@ void region::read_parameters(){
     immature_and_ant = init_ianda;
 }
 
-void region::reset_population(){
+void Region::reset_population(){
    
     //resetting population
     pre_indiv.clear();
     inf_indiv.clear();
     uninf_indiv.clear();
     no_worms_indiv.clear();
-    for(map<int, group*>::iterator j = groups.begin();  j != groups.end(); ++j){ //iterating through groups
+    for(map<int, Group*>::iterator j = groups.begin();  j != groups.end(); ++j){ //iterating through groups
         delete j->second;
     }
     groups.clear();
@@ -563,10 +563,10 @@ void region::reset_population(){
 
     group_pops.clear();
     
-    delete[] road_dst;
-    delete[] euclid_dst;
-    euclid_dst = nullptr;
-    road_dst = nullptr;
+    // delete[] road_dst;
+    // delete[] euclid_dst;
+    // euclid_dst = nullptr;
+    // road_dst = nullptr;
 
     rpop = 0;
     next_aid = 1;
@@ -583,10 +583,10 @@ void region::reset_population(){
 
 }
 
-void region::reset_prev(){
+void Region::reset_prev(){
     //now need to clera worms from people
-    for(map<int, agent*>::iterator j = inf_indiv.begin(); j != inf_indiv.end(); ++j){
-        agent *cur =j->second;
+    for(map<int, Agent*>::iterator j = inf_indiv.begin(); j != inf_indiv.end(); ++j){
+        Agent *cur =j->second;
         cur->status = 'S';
         cur->worm_strength = 0;
         for(int i = 0; i < cur->wvec.size(); ++i){
@@ -595,8 +595,8 @@ void region::reset_prev(){
         cur->wvec.clear();
     }
 
-    for(map<int, agent*>::iterator j = pre_indiv.begin(); j != pre_indiv.end(); ++j){
-        agent *cur =j->second;
+    for(map<int, Agent*>::iterator j = pre_indiv.begin(); j != pre_indiv.end(); ++j){
+        Agent *cur =j->second;
         cur->status = 'S';
         for(int i = 0; i < cur->wvec.size(); ++i){
             delete cur->wvec[i];
@@ -604,8 +604,8 @@ void region::reset_prev(){
         cur->wvec.clear();
     }
 
-    for(map<int, agent*>::iterator j = uninf_indiv.begin(); j != uninf_indiv.end(); ++j){
-        agent *cur =j->second;
+    for(map<int, Agent*>::iterator j = uninf_indiv.begin(); j != uninf_indiv.end(); ++j){
+        Agent *cur =j->second;
         cur->status = 'S';
         for(int i = 0; i < cur->wvec.size(); ++i){
             delete cur->wvec[i];
@@ -620,7 +620,7 @@ void region::reset_prev(){
     no_worms_indiv.clear();
 }
 //constructer of groups
-group::group(int gid, region *rgn, double lat, double lon){
+Group::Group(int gid, Region *rgn, double lat, double lon){
     this->gid = gid;
     this->rgn = rgn;
     this->lat = lat;
@@ -629,10 +629,10 @@ group::group(int gid, region *rgn, double lat, double lon){
     this->sum_mf = 0;
 }
 
-group::~group(){
+Group::~Group(){
     rgn = NULL;
 
-    for(map<int, agent*>::iterator j = group_pop.begin(); j != group_pop.end(); ++j)
+    for(map<int, Agent*>::iterator j = group_pop.begin(); j != group_pop.end(); ++j)
         delete j->second;
     group_pop.clear();
     for (auto node : commuting_dist) {
@@ -650,7 +650,7 @@ group::~group(){
 }
 
 //build individual group populations!
-void group::bld_group_pop(){
+void Group::bld_group_pop(){
 
     int group_population = rgn->group_pops[gid];
     double* age_dist = rgn->age_dist;
@@ -667,7 +667,7 @@ void group::bld_group_pop(){
             if ((age_p >= ll) && (age_p < uu)){
                 int id = rgn->next_aid++;
                 int age = 365*(lower_bound + (upper_bound - lower_bound)*random_real()); // age 
-                agent *p = new agent(id,rgn->agg_param,age); //creating new agent of correct age!
+                Agent *p = new Agent(id,rgn->agg_param,age); //creating new agent of correct age!
                 add_member(p);
                 if (age/365 > 80){
                     cout << i << endl;
@@ -681,6 +681,6 @@ void group::bld_group_pop(){
     }
 }
 
-void group::add_member(agent *p){
-    group_pop.insert(pair<int, agent*>(p->aid, p));
+void Group::add_member(Agent *p){
+    group_pop.insert(pair<int, Agent*>(p->aid, p));
 }
