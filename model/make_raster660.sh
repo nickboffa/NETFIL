@@ -10,7 +10,7 @@ then
 
 	cp ../data/Scales/Raster660/groups.csv   ../data/groups.csv
 	cp ../data/Scales/Raster660/euc_dist.csv ../data/euc_dist.csv
-	cp ../data/Scales/Raster660/euc_dist.csv ../data/road_dist.csv
+	cp ../data/Scales/Raster660/road_dist.csv ../data/road_dist.csv
 
 	cp ../data/Fitted/Raster660/Theta_$1/Agg.txt    ../data/Fitted/
 	cp ../data/Fitted/Raster660/Theta_$1/Theta1.txt  ../data/Fitted/
