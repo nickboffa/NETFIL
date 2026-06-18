@@ -41,8 +41,8 @@ public:
     map<int,double> commuting_cumsum; //cumsum of commuters from each location
     map<int, Agent*> day_population;    //the commuters to current group! and agents from group that did not commute!
 
-    void add_member(Agent *p);
-    void rmv_member(Agent *p);
+    void add_member(Agent *agt);
+    void rmv_member(Agent *agt);
     
     void bld_group_pop();  //build initial population
   
@@ -120,7 +120,7 @@ public:
     //Functions that run on region
     void sim(int year, MDAStrat strategy);                     //wrapper to run simulation
     void handle_commute(int year);                               // generate commuter network and assign
-    void remove_agent(Agent *p);                                   //remove dead people from population
+    void remove_agent(Agent *agt);                                   //remove dead people from population
     void radt_model(char m);                                    //radiation model for daily trips (work/school)
     //void hndl_migrt(int day);                                //TODO long term migration between groups (to help avoid groups that have died out)
     void renew_pop(int year, int day, int dt);

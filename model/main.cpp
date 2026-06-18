@@ -51,13 +51,15 @@ int main(int argc, const char * argv[]){
     time_t end_time = time(nullptr);
 
     string filename = string(OUTDIR) + prv_out_loc;
+#if !ABC_FITTING
     write_netfil(
         filename,
-        start_time, 
+        start_time,
         end_time,
         rgn,
         mda_data
     );
+#endif
 
     return 0;
 } 

@@ -69,8 +69,8 @@ Region::Region(int rid, string rname){
 
             //iterating over agents!
             for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){
-                Agent *cur = k->second;
-                out << cur->aid << "," << cur->age << endl;
+                Agent *agt = k->second;
+                out << agt->aid << "," << agt->age << endl;
             }
             out.close();
         }
@@ -129,9 +129,9 @@ bool Region::pop_reload(){
             char *p = std::strtok(str, ",");        int id = atoi(p);
             p = std::strtok(NULL, ",");             int age = atoi(p);
             
-            Agent *pp = new Agent(id, agg_param, age);
+            Agent *agt = new Agent(id, agg_param, age);
 
-            j->second->add_member(pp);
+            j->second->add_member(agt);
             
             delete []str;
         }
@@ -586,31 +586,31 @@ void Region::reset_population(){
 void Region::reset_prev(){
     //now need to clera worms from people
     for(map<int, Agent*>::iterator j = inf_indiv.begin(); j != inf_indiv.end(); ++j){
-        Agent *cur =j->second;
-        cur->status = 'S';
-        cur->worm_strength = 0;
-        for(int i = 0; i < cur->wvec.size(); ++i){
-            delete cur->wvec[i];
+        Agent *agt =j->second;
+        agt->status = 'S';
+        agt->worm_strength = 0;
+        for(int i = 0; i < agt->wvec.size(); ++i){
+            delete agt->wvec[i];
         }
-        cur->wvec.clear();
+        agt->wvec.clear();
     }
 
     for(map<int, Agent*>::iterator j = pre_indiv.begin(); j != pre_indiv.end(); ++j){
-        Agent *cur =j->second;
-        cur->status = 'S';
-        for(int i = 0; i < cur->wvec.size(); ++i){
-            delete cur->wvec[i];
+        Agent *agt =j->second;
+        agt->status = 'S';
+        for(int i = 0; i < agt->wvec.size(); ++i){
+            delete agt->wvec[i];
         }
-        cur->wvec.clear();
+        agt->wvec.clear();
     }
 
     for(map<int, Agent*>::iterator j = uninf_indiv.begin(); j != uninf_indiv.end(); ++j){
-        Agent *cur =j->second;
-        cur->status = 'S';
-        for(int i = 0; i < cur->wvec.size(); ++i){
-            delete cur->wvec[i];
+        Agent *agt =j->second;
+        agt->status = 'S';
+        for(int i = 0; i < agt->wvec.size(); ++i){
+            delete agt->wvec[i];
         }
-        cur->wvec.clear();
+        agt->wvec.clear();
     }
 
     //resetting population
@@ -667,8 +667,8 @@ void Group::bld_group_pop(){
             if ((age_p >= ll) && (age_p < uu)){
                 int id = rgn->next_aid++;
                 int age = 365*(lower_bound + (upper_bound - lower_bound)*random_real()); // age 
-                Agent *p = new Agent(id,rgn->agg_param,age); //creating new agent of correct age!
-                add_member(p);
+                Agent *agt = new Agent(id,rgn->agg_param,age); //creating new agent of correct age!
+                add_member(agt);
                 break;
             }
         }
@@ -676,6 +676,6 @@ void Group::bld_group_pop(){
     }
 }
 
-void Group::add_member(Agent *p){
-    group_pop.insert(pair<int, Agent*>(p->aid, p));
+void Group::add_member(Agent *agt){
+    group_pop.insert(pair<int, Agent*>(agt->aid, agt));
 }

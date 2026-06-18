@@ -59,12 +59,12 @@ void Region::handle_commute(int year){
                 double commuter_prop = grp->total_commute / (double) grp->group_pop.size();
                 //now iterating over all group members
                 for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){
-                    Agent *cur = k->second; //our agent
+                    Agent *agt = k->second; //our agent
                     
                     double cum_sum_floor = 0;
                     if(random_real() > commuter_prop){ //Will not commute!
-                        grp->day_population.insert(pair<int, Agent*>(cur->aid, cur)); //storing them in current group for day population
-                        cur->dgp = groups[no_commute_id];
+                        grp->day_population.insert(pair<int, Agent*>(agt->aid, agt)); //storing them in current group for day population
+                        agt->dgp = groups[no_commute_id];
                     } 
                     else{ //person will commute
                         int commute_id;
@@ -74,8 +74,8 @@ void Region::handle_commute(int year){
                             
                             if ((cum_sum_floor < commute_dest) && (commute_dest <= i->second)){
                                 commute_id = i->first;
-                                cur->dgp = groups[commute_id]; //assigning agent to day group
-                                groups[commute_id]->day_population.insert(pair<int, Agent*>(cur->aid, cur)); //storing them in commuting group for day population
+                                agt->dgp = groups[commute_id]; //assigning agent to day group
+                                groups[commute_id]->day_population.insert(pair<int, Agent*>(agt->aid, agt)); //storing them in commuting group for day population
                                 goto found_commute;
                             } 
                             else {
@@ -118,19 +118,19 @@ void Region::calc_risk(){
         double nb = 0;
 
         for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){
-            Agent *cur =k->second;
-            int age = int(cur->age / 365);
+            Agent *agt =k->second;
+            int age = int(agt->age / 365);
             double c = 1.0;
             if(age <= 15) c = exposure_by_age[age];
-            nb += cur->bite_scale*c;    
+            nb += agt->bite_scale*c;    
         }
         if(!single){
             for(map<int, Agent*>::iterator k = grp->day_population.begin(); k != grp->day_population.end(); ++k){
-                Agent *cur =k->second;
-                int age = int(cur->age / 365);
+                Agent *agt =k->second;
+                int age = int(agt->age / 365);
                 double c = 1.0;
                 if(age <= 15) c = exposure_by_age[age];
-                db += cur->bite_scale*c;    
+                db += agt->bite_scale*c;    
             }
             grp->day_bites = db;
         }else{
@@ -143,19 +143,19 @@ void Region::calc_risk(){
     //now looping over all infected agents
     for(map<int, Agent*>::iterator j = inf_indiv.begin(); j != inf_indiv.end(); ++j){
         
-        Agent *cur =j->second;
-        Group *ngrp = cur->ngp; //infected agents nightime group
+        Agent *agt =j->second;
+        Group *ngrp = agt->ngp; //infected agents nightime group
 
-        int age = int(cur->age / 365);
+        int age = int(agt->age / 365);
         double c = 1.0;
 
         if(age <= 15) c = exposure_by_age[age];
         
-        ngrp->night_strength += (c*cur->bite_scale*mf_functional_form(form, j->second->worm_strength)) / ngrp->night_bites;
+        ngrp->night_strength += (c*agt->bite_scale*mf_functional_form(form, j->second->worm_strength)) / ngrp->night_bites;
         
         if(!single){
-            Group *dgrp = cur->dgp; //infected agents daytime group
-            dgrp->day_strength += (c*cur->bite_scale*mf_functional_form(form, j->second->worm_strength)) / dgrp->day_bites;
+            Group *dgrp = agt->dgp; //infected agents daytime group
+            dgrp->day_strength += (c*agt->bite_scale*mf_functional_form(form, j->second->worm_strength)) / dgrp->day_bites;
         }
     }
 
@@ -167,16 +167,16 @@ void Region::calc_risk(){
         
         for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //looping over all people will do both night and day bites in same loop
         
-            Agent *cur = k->second; //our person
-            char prev_status = cur ->status;
+            Agent *agt = k->second; //our person
+            char prev_status = agt ->status;
             double c = 1; //
-            int age = int(cur->age / 365);
+            int age = int(agt->age / 365);
             if (age <= 15) c = exposure_by_age[age];
             
-            cur->sim_bites(c, worktonot, single); // simulating the bites!
+            agt->sim_bites(c, worktonot, single); // simulating the bites!
 
-            if(cur->status == 'E' && prev_status == 'S'){
-                pre_indiv.insert(pair<int, Agent *>(cur->aid, cur));
+            if(agt->status == 'E' && prev_status == 'S'){
+                pre_indiv.insert(pair<int, Agent*>(agt->aid, agt));
             }
         }
     }
@@ -200,20 +200,20 @@ void Region::update_epi_status(int year, int day, int dt){
 
     for(map<int, Agent*>::iterator j = pre_indiv.begin(); j != pre_indiv.end();){ //looking at all agents with immature worms but not a set!
 
-        Agent *p = j->second;
-        p->update(year,day,dt);
+        Agent *agt = j->second;
+        agt->update(year,day,dt);
 
-        if(p->status != 'E'){ //agent has left this stage of infection
+        if(agt->status != 'E'){ //agent has left this stage of infection
 
-            p->changed_epi_today = true;
+            agt->changed_epi_today = true;
             
             pre_indiv.erase(j++);
 
-            if(p->status == 'I'){ //infective now!
-                inf_indiv.insert(pair<int, Agent*>(p->aid, p));
+            if(agt->status == 'I'){ //infective now!
+                inf_indiv.insert(pair<int, Agent*>(agt->aid, agt));
             }
-            else if(p->status == 'U'){ //do not have a set of mature worms!
-                uninf_indiv.insert(pair<int, Agent*>(p->aid, p));
+            else if(agt->status == 'U'){ //do not have a set of mature worms!
+                uninf_indiv.insert(pair<int, Agent*>(agt->aid, agt));
             }
         }
         else ++j;
@@ -222,36 +222,36 @@ void Region::update_epi_status(int year, int day, int dt){
 
     for(map<int, Agent*>::iterator j = uninf_indiv.begin(); j != uninf_indiv.end();){ //looking at all agents with onlymature immature worms!
         
-        Agent *p = j->second;
+        Agent *agt = j->second;
 
-        if(!p->changed_epi_today) p->update(year, day,dt);
+        if(!agt->changed_epi_today) agt->update(year, day,dt);
 
-        else p->changed_epi_today = false;
+        else agt->changed_epi_today = false;
 
-        if(p->status != 'U'){
+        if(agt->status != 'U'){
             uninf_indiv.erase(j++);
-            if(p->status == 'I'){
-                p->changed_epi_today = true;
-                inf_indiv.insert(pair<int, Agent*>(p->aid, p));
+            if(agt->status == 'I'){
+                agt->changed_epi_today = true;
+                inf_indiv.insert(pair<int, Agent*>(agt->aid, agt));
             }
-            else if(p->status == 'E'){
-                pre_indiv.insert(pair<int, Agent*>(p->aid, p));
+            else if(agt->status == 'E'){
+                pre_indiv.insert(pair<int, Agent*>(agt->aid, agt));
             }
         }
         else ++j;
     }
 
     for(map<int, Agent*>::iterator j = inf_indiv.begin(); j != inf_indiv.end();){
-        Agent *p = j->second;
-        if(!p->changed_epi_today) p->update(year, day,dt);
-        else p->changed_epi_today = false;
-        if(p->status != 'I'){
+        Agent *agt = j->second;
+        if(!agt->changed_epi_today) agt->update(year, day,dt);
+        else agt->changed_epi_today = false;
+        if(agt->status != 'I'){
             inf_indiv.erase(j++);
-            if(p->status == 'E'){
-                pre_indiv.insert(pair<int, Agent*>(p->aid, p));
+            if(agt->status == 'E'){
+                pre_indiv.insert(pair<int, Agent*>(agt->aid, agt));
             }
-            else if(p->status == 'U'){
-                uninf_indiv.insert(pair<int, Agent*>(p->aid, p));
+            else if(agt->status == 'U'){
+                uninf_indiv.insert(pair<int, Agent*>(agt->aid, agt));
             }
         }
         else ++j;
@@ -267,43 +267,43 @@ void Region::renew_pop(int year, int day, int dt){
         Group *grp = j->second;
 
         for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //going through group members
-            Agent *cur = k->second;
-            int index = int(int(cur->age/365)/5);
+            Agent *agt = k->second;
+            int index = int(int(agt->age/365)/5);
             if(index > 15) index = 15; //all 75+ the same
 
             double prob = 1 - exp(-mortality_rate[index]*dt);
-            if(random_real() < prob) deaths.push_back(cur); //seeing if agent dies depending on age
-            else cur->age += dt; //increase everyones age
+            if(random_real() < prob) deaths.push_back(agt); //seeing if agent dies depending on age
+            else agt->age += dt; //increase everyones age
         }
     }
     while(deaths.size() > 0){ //now removing agents that have died
-        Agent *cur = deaths.back();
-        remove_agent(cur);
+        Agent *agt = deaths.back();
+        remove_agent(agt);
         deaths.pop_back();
     }       
 }
 
-void Region::remove_agent(Agent *p){
+void Region::remove_agent(Agent *agt){
 
     //removing agent from lists of infected
    
-    if(p->status == 'E') pre_indiv.erase(p->aid);
-    else if(p->status == 'I') inf_indiv.erase(p->aid);
-    else if(p->status == 'U') uninf_indiv.erase(p->aid);
+    if(agt->status == 'E') pre_indiv.erase(agt->aid);
+    else if(agt->status == 'I') inf_indiv.erase(agt->aid);
+    else if(agt->status == 'U') uninf_indiv.erase(agt->aid);
     
     
     //nightime group    
-    Group *ngrp = p->ngp;
-    ngrp->group_pop.erase(p->aid);
+    Group *ngrp = agt->ngp;
+    ngrp->group_pop.erase(agt->aid);
     
     if (groups.size() >1 ){
         //daytime group
-        Group *dgrp = p->dgp;
-        dgrp->day_population.erase(p->aid);
+        Group *dgrp = agt->dgp;
+        dgrp->day_population.erase(agt->aid);
     }
    
     
-    delete p;
+    delete agt;
 }
 
 void Region::handle_birth(int year, int day, int dt){ //deal with births
@@ -314,9 +314,9 @@ void Region::handle_birth(int year, int day, int dt){ //deal with births
         Group *grp = j->second;
         for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){//over agents
            
-            Agent *cur = k->second;
-            if(cur->age >= 15*365 && cur->age < 50*365){
-                int index = int((int(cur->age/365))/5);
+            Agent *agt = k->second;
+            if(agt->age >= 15*365 && agt->age < 50*365){
+                int index = int((int(agt->age/365))/5);
                 double prob = 1 - exp(-birth_rate[index]*dt);
                 
                 if(random_real() < prob) ++total_births; 
@@ -325,11 +325,11 @@ void Region::handle_birth(int year, int day, int dt){ //deal with births
         }
         //now assigning births
         while (total_births > 0) {
-            Agent *bb = new Agent(next_aid++, agg_param, 0); //have birth!
-            bb->ngp = grp;
-            bb->dgp = grp;
-            grp->add_member(bb); //assigning baby to group
-            grp->day_population.insert(pair<int, Agent*>(bb->aid, bb));//assume baby stays within group during day
+            Agent *bby = new Agent(next_aid++, agg_param, 0); //have birth!
+            bby->ngp = grp;
+            bby->dgp = grp;
+            grp->add_member(bby); //assigning baby to group
+            grp->day_population.insert(pair<int, Agent*>(bby->aid, bby));//assume baby stays within group during day
             
             --total_births;
         }

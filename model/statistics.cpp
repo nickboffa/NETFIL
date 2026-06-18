@@ -38,12 +38,12 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
 
         //now over people
         for(map<int,Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){
-            Agent *a = k->second;
-            int age = int(a->age/365);
+            Agent *agt = k->second;
+            int age = int(agt->age/365);
 
-            if(a->status == 'I'){//person is infectious
+            if(agt->status == 'I'){//person is infectious
                 ++inf_groups[j->first - 1];
-                double ws = a->worm_strength;
+                double ws = agt->worm_strength;
                 ++inf_total;
                 if (ws <= 1) ++one_mated_adult;
                 if (ws > 1 && ws <= 2) ++two_mated_adult;
@@ -57,13 +57,13 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
                 if (ws > 9 ) ++tenplus_mated_adult;
 
             }
-            if(a->status == 'I' || a->status == 'U'|| random_real() < pow(DAILY_PROB_LOSE_ANT, (year*365 +day) - a->last_mworm_time) ){ //all people infected with any number of mature worms or who still have lingering antibodies are counted
+            if(agt->status == 'I' || agt->status == 'U'|| random_real() < pow(DAILY_PROB_LOSE_ANT, (year*365 +day) - agt->last_mworm_time) ){ //all people infected with any number of mature worms or who still have lingering antibodies are counted
                 
                 ++antigen_pos_groups[j->first - 1];
                 ++ant_total;
             }
-            if (a->status == 'U') ++non_mated_adult;
-            if (a->status == 'E') ++immature_worm_only;
+            if (agt->status == 'U') ++non_mated_adult;
+            if (agt->status == 'E') ++immature_worm_only;
         }
 
     }

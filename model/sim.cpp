@@ -219,9 +219,9 @@ void Region::seed_lf(){
         partial_shuffle(bite_scales,0,init_inf_shuffle);
 
         for(map<int, Agent*>::iterator j = inf_indiv.begin(); j != inf_indiv.end(); ++j){
-            Agent *cur = j->second;
+            Agent *agt = j->second;
 
-            cur->bite_scale =  bite_scales.front();
+            agt->bite_scale =  bite_scales.front();
             bite_scales.erase(bite_scales.begin());        
         }
 
@@ -239,26 +239,26 @@ void Region::seed_lf(){
 
         //now reassigning to agents! first the people with no worms 
         for(map<int, Agent*>::iterator j = no_worms_indiv.begin(); j != no_worms_indiv.end(); ++j){
-            Agent *cur = j->second;
+            Agent *agt = j->second;
 
-            cur->bite_scale =  bite_scales.back();
+            agt->bite_scale =  bite_scales.back();
 
             bite_scales.pop_back();
         }
 
         //Now for worm postive people!
         for(map<int, Agent*>::iterator j = pre_indiv.begin(); j != pre_indiv.end(); ++j){
-            Agent *cur = j->second;
+            Agent *agt = j->second;
 
-            cur->bite_scale =  bite_scales.back();
+            agt->bite_scale =  bite_scales.back();
 
             bite_scales.pop_back();
         }
 
         for(map<int, Agent*>::iterator j = uninf_indiv.begin(); j != uninf_indiv.end(); ++j){
-            Agent *cur = j->second;
+            Agent *agt = j->second;
 
-            cur->bite_scale =  bite_scales.back();
+            agt->bite_scale =  bite_scales.back();
 
             bite_scales.pop_back();
         }

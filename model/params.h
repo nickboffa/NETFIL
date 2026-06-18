@@ -27,7 +27,11 @@ constexpr double PROPORTION_MALE_AGENT = 0.5; //proportion of agents that are ma
 constexpr int N_AGE_GROUPS    = 16; //number of 5-year age brackets (for seeding pop)
 constexpr int WIDTH_AGE_GROUPS = 5; // 0-4, 5-9, ... 75-79
 
-constexpr int SIM_YEARS = 21; // 21 when not abc fitting
+#if ABC_FITTING
+constexpr int SIM_YEARS = 7;
+#else
+constexpr int SIM_YEARS = 21;
+#endif
 
 constexpr double INIT_PREV_MIN = 3.15;  // Minimum initial antigen prev
 constexpr double INIT_PREV_MAX = 3.35;  // Maximum initial antigen prev
