@@ -7,25 +7,25 @@
 
 using namespace std;
 
-class Group;                           //groups of people akin to villages
-class Region;                          //region which is comprised of the groups!
+class Group;                           // Groups of people akin to villages
+class Region;                          // Region which is comprised of the groups!
 
 class Group{
 public:
 
-    int gid;                           //Group ID
+    int gid;                           // Group ID
     
-    double day_strength;            //strength of infection during the day
-    double night_strength;           //strength of infection during the day
+    double day_strength;            // Strength of infection during the day
+    double night_strength;           // Strength of infection during the day
     
     double day_bites;
     double night_bites;
 
-    double lat, lon;                    //latitude & longitude
-    Region *rgn;                       //region!
-    double sum_mf;                      //NEED TO DEFINE
+    double lat, lon;                    // Latitude & longitude
+    Region *rgn;                       // Region
+    double sum_mf;                      // NEED TO DEFINE
 
-    map<int, Agent*> group_pop;       //group population (out of work hours)
+    map<int, Agent*> group_pop;       // Group population (out of work hours)
 
     //commuting data
     struct c_node{ //used to store distances to all other groups from current group
@@ -77,6 +77,14 @@ public:
 
     double init_beta_b;
     double init_poisson;
+    double sigma_group;
+    double beta_0;
+
+    double ant_0;
+    double init_prev_min;
+    double init_prev_max;
+    double init_ratio_min;
+    double init_ratio_max;
 
     double age_dist[N_AGE_GROUPS];     //container for the age distribution
     int age_dist_lower[N_AGE_GROUPS];

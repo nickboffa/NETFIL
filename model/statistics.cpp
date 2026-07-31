@@ -1,5 +1,7 @@
 #include "network.h"
 #include "rng.h"
+#include <array>
+#include <cmath>
 #include <cstring>
 
 extern string prv_out_loc;
@@ -9,22 +11,20 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
     
     //total pop
     double pop_total = 0;
-    double inf_total = 0;
+    double mf_total = 0;
     double ant_total = 0;
 
     //worm burdens
     double immature_worm_only = 0;
     double non_mated_adult = 0;
-    double one_mated_adult = 0;
-    double two_mated_adult = 0;
-    double three_mated_adult = 0;
-    double four_mated_adult = 0;
-    double five_mated_adult = 0;
-    double six_mated_adult = 0;
-    double seven_mated_adult = 0;
-    double eight_mated_adult = 0;
-    double nine_mated_adult = 0;
-    double tenplus_mated_adult = 0;
+    array<double, 10> mated_adult{};
+
+    const array<const char*, 10> MATED_ADULT_LABELS = {
+        "one_mated_adult", "two_mated_adult", "three_mated_adult",
+        "four_mated_adult", "five_mated_adult", "six_mated_adult",
+        "seven_mated_adult", "eight_mated_adult", "nine_mated_adult",
+        "tenplus_mated_adult"
+    };
     
     vector<double> inf_groups;
     inf_groups.resize(groups.size());
@@ -43,21 +43,13 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
 
             if(agt->status == 'I'){//person is infectious
                 ++inf_groups[j->first - 1];
-                double ws = agt->worm_strength;
-                ++inf_total;
-                if (ws <= 1) ++one_mated_adult;
-                if (ws > 1 && ws <= 2) ++two_mated_adult;
-                if (ws > 2 && ws <= 3) ++three_mated_adult;
-                if (ws > 3 && ws <= 4) ++four_mated_adult;
-                if (ws > 4 && ws <= 5) ++five_mated_adult;
-                if (ws > 5 && ws <= 6) ++six_mated_adult;
-                if (ws > 6 && ws <= 7) ++seven_mated_adult;
-                if (ws > 7 && ws <= 8) ++eight_mated_adult;
-                if (ws > 8 && ws <= 9) ++nine_mated_adult;
-                if (ws > 9 ) ++tenplus_mated_adult;
-
+                ++mf_total;
+                // Count number of mated adult worms
+                int bucket = min(static_cast<int>(ceil(agt->worm_strength)) - 1, 9);
+                ++mated_adult[bucket];
             }
-            if(agt->status == 'I' || agt->status == 'U'|| random_real() < pow(DAILY_PROB_LOSE_ANT, (year*365 +day) - agt->last_mworm_time) ){ //all people infected with any number of mature worms or who still have lingering antibodies are counted
+            //all people infected with any number of mature worms or who still have lingering antibodies are counted
+            if(agt->status == 'I' || agt->status == 'U'|| random_real() < pow(DAILY_PROB_LOSE_ANT, (year*365 +day) - agt->last_mworm_time) ){ 
                 
                 ++antigen_pos_groups[j->first - 1];
                 ++ant_total;
@@ -73,13 +65,14 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
     cout << year+START_YEAR << ": " << "prepatent = " << pre_indiv.size() << " uninfectious = " << uninf_indiv.size() << " infectious = " << inf_indiv.size() << " antigen positive = " << ant_total << endl;
     cout << "overall mf prevalence = " << fixed << setprecision(2) << inf_indiv.size()/(double)rpop*100 << "%" << endl;
     cout<< "overall ant prevalence = " << fixed << setprecision(2) << ant_total/(double)rpop*100 << "%" << endl;
-    cout<< "overall ratio prevalence = " << fixed << setprecision(2) << ant_total/inf_total << endl;
+    cout<< "overall ratio prevalence = " << fixed << setprecision(2) << ant_total/mf_total << endl;
     }
     string prv_dat = OUTDIR;    prv_dat = prv_dat + prv_out_loc; 
     ofstream out;   ifstream in;
     in.open(prv_dat.c_str()); // try opening the target for output
     if(!in){ // if it doesn't exist write a heading
         out.open(prv_dat.c_str());
+        out << "name,";
         out << "sim_i,";
         out << "year,";
         out << "day,";
@@ -101,28 +94,22 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
         out << "achieved_coverage,";
         out << "sim_years,";
         out << "pop_total,";
-        out << "inf_total,";
+        out << "mf_total,";
         out << "ant_total,";
         out << "number_treated,";
         out << "immature_worm_only,";
         out << "non_mated_adult,";
-        out << "one_mated_adult,";
-        out << "two_mated_adult,";
-        out << "three_mated_adult,";
-        out << "four_mated_adult,";
-        out << "five_mated_adult,";
-        out << "six_mated_adult,";
-        out << "seven_mated_adult,";
-        out << "eight_mated_adult,";
-        out << "nine_mated_adult,";
-        out << "tenplus_mated_adult,";
+        for (const auto& label : MATED_ADULT_LABELS) {
+            out << label << ",";
+        }
         for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){
             out << "pop_" << group_numbers[j -> second -> gid] << ","; 
         }
         for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){
-            out << "mf_" << group_numbers[j -> second -> gid] << ","; 
+            if (j != groups.begin()) out << ",";
+            out << "mf_" << group_numbers[j->second->gid];
         }
-        out << endl;
+        out << "\n";
         out.close();
     }
     else in.close();
@@ -130,6 +117,7 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
     //write the prevalence for whole populations, by gender, by age group and for each village
     out.open(prv_dat.c_str(), ios::app);
     
+    out << strategy.name << ",";
     out << sim_i << ",";
     out << year + START_YEAR << ",";
     out << day << ",";
@@ -151,31 +139,25 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
     out << achieved_coverage[year] << ",";
     out << SIM_YEARS << ",";
     out << pop_total << ",";
-    out << inf_total << ",";
+    out << mf_total << ",";
     out << ant_total << ",";
     out << number_treated[year] << ",";
     out << immature_worm_only << ",";
     out << non_mated_adult << ",";
-    out << one_mated_adult << ",";
-    out << two_mated_adult<< ",";
-    out << three_mated_adult << ",";
-    out << four_mated_adult << ",";
-    out << five_mated_adult<< ",";
-    out << six_mated_adult << ",";
-    out << seven_mated_adult<< ",";
-    out << eight_mated_adult << ",";
-    out << nine_mated_adult << ",";
-    out << tenplus_mated_adult<< ",";
+    for (double count : mated_adult) {
+        out << count << ",";
+    }
     for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){
         double n_village = (j -> second -> group_pop).size();
         if(n_village==0) out << "NA,"; // there's a chance that populations in small villages might drop to zero - this is to avoid crashes in that situation
         else out << n_village << ",";
     }
     for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){
-        double n_village = (j -> second -> group_pop).size();
-        if(n_village==0) out << "NA,"; // there's a chance that populations in small villages might drop to zero - this is to avoid crashes in that situation
-        else out <<  inf_groups[j -> first - 1] << ",";
+        if (j != groups.begin()) out << ",";
+        double n_village = (j->second->group_pop).size();
+        if (n_village == 0) out << "NA";
+        else out << inf_groups[j->first - 1];
     }
-    out << endl;
+    out << "\n";
     out.close();
 }

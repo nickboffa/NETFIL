@@ -20,6 +20,8 @@ void write_netfil(
     const string& filename,
     time_t start_time,
     time_t end_time,
+    clock_t cpu_start,
+    clock_t cpu_end,
     Region *rgn,
     string mda_data
 ) {
@@ -66,10 +68,17 @@ void write_netfil(
     write_section(netfil, "MDA parameters");
     int num_scenarios = count_mda_scenarios(mda_data);
     for (int i = 1; i <= num_scenarios; i++) {
-        MDAStrat strategy = get_mda_strat(mda_data, i + 1);
+        MDAStrat strategy = get_mda_strat(mda_data, i);
         write_value(netfil, "Strategy number", i);
         strategy.print_mda_strat(netfil);
         netfil << endl;
+    }
+
+    write_section(netfil, "Drugs parameters");
+
+    for (const auto& [name, drug] : DRUG_DICT) {
+        write_value(netfil, "Drug", name);
+        drug.print_drugs(netfil);
     }
 
     write_section(netfil, "Year parameters");
@@ -92,30 +101,36 @@ void write_netfil(
 
     write_section(netfil, "Disease parameters");
 
-    write_value(netfil, "Initial antigen prevalence mean", ANT_0);
-    string init_prev_range = to_string(INIT_PREV_MIN) + "—" + to_string(INIT_PREV_MAX);
+    write_value(netfil, "Initial antigen prevalence mean", rgn->ant_0);
+    string init_prev_range = to_string(rgn->init_prev_min) + "—" + to_string(rgn->init_prev_max);
     write_value(netfil, "Allowed initial antigen prevalence range", init_prev_range);
 
-    string init_ratio_range = to_string(INIT_RATIO_MIN) + "—" + to_string(INIT_RATIO_MAX);
+    string init_ratio_range = to_string(rgn->init_ratio_min) + "—" + to_string(rgn->init_ratio_max);
     write_value(netfil, "Initial mf:ant ratio range(?)", init_ratio_range);
 
     write_value(netfil, "Probability you lose antigen each day", DAILY_PROB_LOSE_ANT);
 
     write_section(netfil, "Miscellaneous parameters");
-    write_value(netfil, "Sigma_g (household stdev)", SIGMA_G);
-    write_value(netfil, "Beta_0", BETA_0);
+    write_value(netfil, "Sigma_group (group-level stdev)", rgn->sigma_group);
+    write_value(netfil, "Beta_0", rgn->beta_0);
     write_value(netfil, "Distance type (e euclidean, r road)", DISTANCE_TYPE);
     write_value(netfil, "Number of years till road network re-estimated", RECALC_YEARS);
        
     write_section(netfil, "TIMESTAMP");
-    int duration = (int)difftime(end_time, start_time);
-    int duration_h = duration / 3600;
-    int duration_min = (duration % 3600) / 60;
-    int duration_sec = duration % 60;
+    int wall_duration = (int)difftime(end_time, start_time);
+    int wall_h = wall_duration / 3600;
+    int wall_min = (wall_duration % 3600) / 60;
+    int wall_sec = wall_duration % 60;
+
+    int cpu_duration = (int)((cpu_end - cpu_start) / CLOCKS_PER_SEC);
+    int cpu_h = cpu_duration / 3600;
+    int cpu_min = (cpu_duration % 3600) / 60;
+    int cpu_sec = cpu_duration % 60;
+
     netfil << "Started: " << ctime(&start_time);
     netfil << "Ended: " << ctime(&end_time);
-    netfil << "Time taken (h:m:s): " << duration_h << ":" <<
-        duration_min << ":" << duration_sec << endl;
+    netfil << "Wall time (h:m:s): " << wall_h << ":" << wall_min << ":" << wall_sec << endl;
+    netfil << "CPU time  (h:m:s): " << cpu_h << ":" << cpu_min << ":" << cpu_sec << endl;
 
     netfil.close();
 }

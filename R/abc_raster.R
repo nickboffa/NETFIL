@@ -2,26 +2,16 @@ library(tidyverse)
 library(abc)
 library(HDInterval)
 
-# ── Scale configuration ────────────────────────────────────────────────────────
-# Change SCALE to rerun for a different spatial scale.
-#   "Raster660"  → fit_r*.tsv   (euc_dists.csv, no road_dist)
-#   "Many"       → fit_s*.tsv   (uses existing euc_dist.csv + road_dist.csv)
-#   "Village"    → fit_v*.tsv   (uses existing euc_dist.csv + road_dist.csv)
-SCALE <- "Raster660"
-
-TSV_PREFIX <- switch(SCALE,
-  Raster660 = "r",
-  Many      = "s",
-  Village   = "v",
-  stop("Unknown scale: ", SCALE)
-)
+# ── Country / scale configuration ─────────────────────────────────────────────
+COUNTRY <- "ASM"
+SCALE   <- "Raster550"
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 script_dir <- here::here()
 model_dir  <- file.path(script_dir, "model")
 data_dir   <- file.path(script_dir, "data")
 output_dir <- file.path(script_dir, "output")   # = model/../output = ../output from binary
-fit_base   <- file.path(data_dir, "Fitted", SCALE)
+fit_base   <- file.path(data_dir, COUNTRY, "Fitted", SCALE)
 binary     <- file.path(model_dir, "main")
 
 dir.create(output_dir, showWarnings = FALSE)
@@ -33,18 +23,19 @@ message("Clearing stale population cache...")
 system2("bash", args = c(file.path(model_dir, "clean_inputs.sh")), stdout = FALSE, stderr = FALSE)
 
 # ── Observed targets ────────────────────────────────────────────────────────────
-OBS_ANT_2016 <- 6.2   # Ag prevalence % (Lau et al. 2020, community survey age ≥8)
-OBS_MF_2016  <- 1.59  # MF prevalence % (25.6% of Ag+ Mf-positive, back-calculated)
+OBS_ANT_2016 <- 6.2   # ANT prevalence % (Lau et al. 2020, community survey age ≥8)
+OBS_MF_2016  <- 1.59  # MF prevalence % (25.6% of ANT+ Mf-positive, back-calculated)
+OBS_ICC_2016 <- 0.551603405400143 # linear from write_clustering_params.R for R550
 
-# ── Priors (semi-informative uniform, matching paper) ──────────────────────────
+# ── Semi-informative uniform priors (guessed from past plots)
 T1_MIN <- 0.0;  T1_MAX <- 0.01
 K_MIN  <- 0.0;  K_MAX  <- 0.3
 W_MIN  <- 0.0;  W_MAX  <- 0.8
 
 # ── ABC settings ───────────────────────────────────────────────────────────────
 N_PARTICLES <- 500     # was 500
-N_REPS      <- 5     # was 5
-N_POSTERIOR <- 2500   # was 10000 (needs to be <= accepted particles)
+N_REPS      <- 2     # was 5
+N_POSTERIOR <- 500   # was 10000, only affects output resolution, not fitted parameters
 ABC_TOL     <- 0.05  # keep closest 5%
 
 THETA2_VALS   <- c(1.0)          # just one to test
@@ -53,18 +44,10 @@ THETA2_SUFFIX <- c("1")
 
 
 # ── Data setup ─────────────────────────────────────────────────────────────────
-message("Copying ", SCALE, " scale data to data/...")
-scale_dir <- file.path(data_dir, "Scales", SCALE)
-
-file.copy(file.path(scale_dir, "groups.csv"), file.path(data_dir, "groups.csv"), overwrite = TRUE)
-
-if (SCALE == "Raster660") {
-  file.copy(file.path(scale_dir, "euc_dist.csv"), file.path(data_dir, "euc_dist.csv"), overwrite = TRUE)
-  file.copy(file.path(scale_dir, "euc_dist.csv"), file.path(data_dir, "road_dist.csv"), overwrite = TRUE)
-} else {
-  file.copy(file.path(scale_dir, "euc_dist.csv"),  file.path(data_dir, "euc_dist.csv"),  overwrite = TRUE)
-  file.copy(file.path(scale_dir, "road_dist.csv"), file.path(data_dir, "road_dist.csv"), overwrite = TRUE)
-}
+message("Copying ", COUNTRY, "/", SCALE, " scale data to data/...")
+scale_files <- list.files(file.path(data_dir, COUNTRY, "Scales", SCALE), full.names = TRUE)
+file.copy(scale_files, data_dir, overwrite = TRUE)
+file.copy(file.path(data_dir, COUNTRY, "mda_params.csv"), data_dir, overwrite = TRUE)
 
 # ── Helper: run model from model/ so DATADIR and OUTDIR resolve correctly ───────
 run_model <- function(id) {
@@ -75,45 +58,51 @@ run_model <- function(id) {
 }
 
 # ── Helper: parse output CSV for year-start summary statistics ─────────────────
-# output_epidemics writes quarterly; we use Day == 0 rows.
-# Column positions (1-indexed after read_csv): 2=Year 3=Day 21=Pop 22=inf 23=ant
+# output_epidemics writes quarterly; we use year == 2016, day == 0 rows.
+# Returns one row per simulation replicate with columns ANT, MF, ICC.
 parse_output <- function(path) {
   tryCatch({
-    dat <- read_csv(path, col_types = cols(.default = "d"), show_col_types = FALSE)
-
-    r14 <- dplyr::filter(dat, year == 2014, day == 0)
+    # `name` is a string column; everything else is numeric
+    dat <- read_csv(path, col_types = cols(name = "c", .default = "d"), show_col_types = FALSE)
     r16 <- dplyr::filter(dat, year == 2016, day == 0)
-    # One row per simulation replicate, matched by sim_i
-    tibble(sim_i = r16$sim_i) |>
-      mutate(
-        Ratio_2014   = map_dbl(sim_i, function(s) {
-          row <- r14[r14$sim_i == s, ]
-          if (nrow(row) > 0 && row$ant_total[1] > 0) row$inf_total[1] / row$ant_total[1] else NA_real_
-        }),
-        Antigen_2016 = if_else(r16$pop_total > 0, r16$ant_total / r16$pop_total * 100, NA_real_),
-        MF_2016      = if_else(r16$pop_total > 0, r16$inf_total / r16$pop_total * 100, NA_real_)
-      ) |>
-      dplyr::select(-sim_i)
+    if (nrow(r16) == 0) return(tibble(ANT = NA_real_, MF = NA_real_, ICC = NA_real_))
+
+    # ICC from per-group MF prevalences: ICC = sigma2 / (sigma2 + pi^2/3)
+    # where sigma2 = var(logit(p_j)) across groups
+    calc_icc <- function(row) {
+      mf_vals  <- unlist(dplyr::select(row, matches("^mf_\\d")))
+      pop_vals <- unlist(dplyr::select(row, matches("^pop_\\d")))
+      p_j <- mf_vals / pop_vals
+      p_j <- p_j[is.finite(p_j) & p_j > 0 & p_j < 1]
+      if (length(p_j) < 2) return(NA_real_)
+      sigma2 <- var(log(p_j / (1 - p_j)))
+      sigma2 / (sigma2 + pi^2 / 3)
+    }
+
+    tibble(
+      ANT = if_else(r16$pop_total > 0, r16$ant_total / r16$pop_total * 100, NA_real_),
+      MF  = if_else(r16$pop_total > 0, r16$mf_total  / r16$pop_total * 100, NA_real_),
+      ICC = purrr::map_dbl(seq_len(nrow(r16)), \(i) calc_icc(r16[i, ]))
+    )
   }, error = function(e) {
     warning("Failed to parse ", path, ": ", conditionMessage(e))
-    tibble(Ratio_2014 = NA_real_, Antigen_2016 = NA_real_, MF_2016 = NA_real_)
+    tibble(ANT = NA_real_, MF = NA_real_, ICC = NA_real_)
   })
 }
 
-# ── Helper: write ABC-GLM output files matching existing format ─────────────────
-write_abc_glm_files <- function(abc_fit, out_dir, label, prior) {
+# ── Helper: write ABC-GLM output files ─────────────────────────────────────────
+# Writes the minimum needed to reload results (abc_fit.rds + posterior draws +
+# TranParams.csv) plus key diagnostic PNGs.
+write_abc_glm_files <- function(abc_fit, out_dir, label, prior,
+                                 particles, accepted, l1_dist, obs_vec) {
+  # ── Reload essentials ────────────────────────────────────────────────────────
   write_rds(abc_fit, file.path(out_dir, "abc_fit.rds"))
-  
+
   adj <- as.data.frame(abc_fit$adj.values)
   wts <- abc_fit$weights / sum(abc_fit$weights)
-
   idx  <- sample(nrow(adj), N_POSTERIOR, replace = TRUE, prob = wts)
   post <- adj[idx, ]
   colnames(post) <- c("T1", "W", "k")
-
-  writeLines(format(post$T1, scientific = TRUE), file.path(out_dir, "Theta1.txt"))
-  writeLines(format(post$k,  scientific = TRUE), file.path(out_dir, "Agg.txt"))
-  writeLines(format(post$W,  scientific = TRUE), file.path(out_dir, "Work.txt"))
 
   theta2_val <- THETA2_VALS[THETA2_LABELS == label]
   write_csv(tibble(
@@ -121,72 +110,110 @@ write_abc_glm_files <- function(abc_fit, out_dir, label, prior) {
     Theta_2   = theta2_val,
     Agg       = median(post$k),
     WorktoNot = median(post$W)
-  ), file.path(out_dir, "TranParams.csv"))
+  ), file.path(out_dir, "tran_params.csv"))
 
-  # Posterior characteristics
-  mode_val  <- function(x) { d <- density(x); d$x[which.max(d$y)] }
-  post_mat  <- as.matrix(post)
-  hpd50 <- HDInterval::hdi(post_mat, credMass = 0.50)
-  hpd90 <- HDInterval::hdi(post_mat, credMass = 0.90)
-  hpd95 <- HDInterval::hdi(post_mat, credMass = 0.95)
-  hpd99 <- HDInterval::hdi(post_mat, credMass = 0.99)
-
-  chars <- bind_rows(
-    tibble(what = "mode",                    T1 = mode_val(post$T1),        W = mode_val(post$W),        k = mode_val(post$k)),
-    tibble(what = "mean",                    T1 = mean(post$T1),            W = mean(post$W),            k = mean(post$k)),
-    tibble(what = "median",                  T1 = median(post$T1),          W = median(post$W),          k = median(post$k)),
-    tibble(what = "quantile_50_lower_bound", T1 = quantile(post$T1, 0.25),  W = quantile(post$W, 0.25),  k = quantile(post$k, 0.25)),
-    tibble(what = "quantile_50_upper_bound", T1 = quantile(post$T1, 0.75),  W = quantile(post$W, 0.75),  k = quantile(post$k, 0.75)),
-    tibble(what = "quantile_90_lower_bound", T1 = quantile(post$T1, 0.05),  W = quantile(post$W, 0.05),  k = quantile(post$k, 0.05)),
-    tibble(what = "quantile_90_upper_bound", T1 = quantile(post$T1, 0.95),  W = quantile(post$W, 0.95),  k = quantile(post$k, 0.95)),
-    tibble(what = "quantile_95_lower_bound", T1 = quantile(post$T1, 0.025), W = quantile(post$W, 0.025), k = quantile(post$k, 0.025)),
-    tibble(what = "quantile_95_upper_bound", T1 = quantile(post$T1, 0.975), W = quantile(post$W, 0.975), k = quantile(post$k, 0.975)),
-    tibble(what = "quantile_99_lower_bound", T1 = quantile(post$T1, 0.005), W = quantile(post$W, 0.005), k = quantile(post$k, 0.005)),
-    tibble(what = "quantile_99_upper_bound", T1 = quantile(post$T1, 0.995), W = quantile(post$W, 0.995), k = quantile(post$k, 0.995)),
-    tibble(what = "HPD_50_lower_bound",      T1 = hpd50["lower","T1"], W = hpd50["lower","W"], k = hpd50["lower","k"]),
-    tibble(what = "HPD_50_upper_bound",      T1 = hpd50["upper","T1"], W = hpd50["upper","W"], k = hpd50["upper","k"]),
-    tibble(what = "HPD_90_lower_bound",      T1 = hpd90["lower","T1"], W = hpd90["lower","W"], k = hpd90["lower","k"]),
-    tibble(what = "HPD_90_upper_bound",      T1 = hpd90["upper","T1"], W = hpd90["upper","W"], k = hpd90["upper","k"]),
-    tibble(what = "HPD_95_lower_bound",      T1 = hpd95["lower","T1"], W = hpd95["lower","W"], k = hpd95["lower","k"]),
-    tibble(what = "HPD_95_upper_bound",      T1 = hpd95["upper","T1"], W = hpd95["upper","W"], k = hpd95["upper","k"]),
-    tibble(what = "HPD_99_lower_bound",      T1 = hpd99["lower","T1"], W = hpd99["lower","W"], k = hpd99["lower","k"]),
-    tibble(what = "HPD_99_upper_bound",      T1 = hpd99["upper","T1"], W = hpd99["upper","W"], k = hpd99["upper","k"])
-  )
-  write_tsv(chars, file.path(out_dir, "ABC_GLM_PosteriorCharacteristics_Obs0.txt"))
-
-  # 100-point density grid
-  d_t1 <- density(post$T1, n = 100)
-  d_w  <- density(post$W,  n = 100)
-  d_k  <- density(post$k,  n = 100)
-  write_tsv(tibble(
-    number    = 1:100,
-    T1        = d_t1$x, T1_density = d_t1$y,
-    W         = d_w$x,  W_density  = d_w$y,
-    k         = d_k$x,  k_density  = d_k$y
-  ), file.path(out_dir, "ABC_GLM_PosteriorEstimates_Obs0.txt"))
-
-  # L1 distance prior vs posterior
-  l1 <- function(a, b) {
-    grid  <- seq(min(a, b), max(a, b), length.out = 512)
-    da    <- density(a, from = grid[1], to = grid[512], n = 512)$y
-    db    <- density(b, from = grid[1], to = grid[512], n = 512)$y
-    mean(abs(da - db))
+  # ── Diagnostic PNGs ──────────────────────────────────────────────────────────
+  save_png <- function(p, name, w = 10, h = 6) {
+    ggsave(file.path(out_dir, name), p, width = w, height = h, dpi = 150)
   }
-  write_tsv(tibble(
-    T1 = l1(runif(N_POSTERIOR, T1_MIN, T1_MAX), post$T1),
-    W  = l1(runif(N_POSTERIOR, W_MIN,  W_MAX),  post$W),
-    k  = l1(runif(N_POSTERIOR, K_MIN,  K_MAX),  post$k)
-  ), file.path(out_dir, "ABC_GLM_L1DistancePriorPosterior.txt"))
 
-  # Prior (black) / posterior (red) density plots
-  tryCatch({
-    pdf(file.path(out_dir, "ABC_GLM_PosteriorPlots_Obs0.pdf"))
-    plot(abc_fit, param = prior, ask = FALSE, subsample = min(1000, nrow(prior)))
-    dev.off()
-  }, error = function(e) {
-    dev.off()
-    warning("Prior/posterior plot failed (too few particles?): ", conditionMessage(e))
-  })
+  # Inter-run vs overall variation
+  variation_dat <- particles |>
+    pivot_longer(c(ANT, MF, ICC), names_to = "stat", values_to = "value")
+
+  noise_labels <- variation_dat |>
+    group_by(stat) |>
+    mutate(total_sd = sd(value, na.rm = TRUE)) |>
+    group_by(stat, Sim) |>
+    summarise(within_var = var(value, na.rm = TRUE), total_sd = first(total_sd),
+              .groups = "drop") |>
+    group_by(stat) |>
+    summarise(
+      noise_frac = sqrt(mean(within_var, na.rm = TRUE)) / first(total_sd),
+      .groups = "drop"
+    ) |>
+    mutate(label = sprintf("%s (noise: %.0f%%)", stat, noise_frac * 100)) |>
+    dplyr::select(stat, label) |>
+    deframe()
+
+  var_plot <- ggplot(variation_dat, aes(x = Sim, y = value, color = factor(Sim))) +
+    geom_point(alpha = 0.5, size = 0.8) +
+    facet_wrap(~stat, scales = "free_y", ncol = 1,
+               labeller = as_labeller(noise_labels)) +
+    labs(x = "Particle", y = NULL) +
+    guides(color = "none") +
+    theme_minimal()
+  
+  save_png(
+    var_plot,
+    "variation.png", h = 10
+  )
+
+  # L1 distance histogram with acceptance cutoff
+  save_png(
+    ggplot(tibble(l1 = l1_dist), aes(x = l1)) +
+      geom_histogram(bins = 40, fill = "steelblue", color = "white") +
+      geom_vline(xintercept = quantile(l1_dist, ABC_TOL),
+                 color = "red", linetype = "dashed", linewidth = 1) +
+      annotate("text", x = quantile(l1_dist, ABC_TOL), y = Inf,
+               label = sprintf("%.0f%% cutoff", ABC_TOL * 100),
+               hjust = -0.1, vjust = 2, color = "red") +
+      labs(title = "L1 distance distribution",
+           x = "L1 distance to observed", y = "Count") +
+      theme_minimal(),
+    "l1_distances.png"
+  )
+
+  # All particles vs accepted vs observed (two facets: MF and ICC on y-axis)
+  obs_labels <- c(MF = "MF prevalence 2016 (%)", ICC = "ICC")
+  particle_long <- bind_rows(
+    particles |> mutate(y = MF,  facet = "MF"),
+    particles |> mutate(y = ICC, facet = "ICC")
+  )
+  accepted_long <- bind_rows(
+    accepted  |> mutate(y = MF,  facet = "MF"),
+    accepted  |> mutate(y = ICC, facet = "ICC")
+  )
+  obs_long <- tibble(
+    x     = c(obs_vec[1], obs_vec[1]),
+    y     = c(obs_vec[2], obs_vec[3]),
+    facet = c("MF", "ICC")
+  )
+  save_png(
+    ggplot() +
+      geom_point(data = particle_long, aes(ANT, y),
+                 color = "grey70", alpha = 0.4, size = 1) +
+      geom_point(data = accepted_long, aes(ANT, y),
+                 color = "steelblue", alpha = 0.6, size = 1.5) +
+      geom_point(data = obs_long, aes(x, y),
+                 color = "red", shape = 8, size = 4, stroke = 1.5) +
+      facet_wrap(~facet, scales = "free_y",
+                 labeller = as_labeller(obs_labels)) +
+      labs(title = "All particles (grey) vs accepted (blue) vs observed (red)",
+           x = "Antigen prevalence 2016 (%)") +
+      theme_minimal() +
+      theme(axis.title.y = element_blank()),
+    "particles.png", w = 14
+  )
+
+  # Prior vs posterior (regression-adjusted)
+  adj_df <- as.data.frame(abc_fit$adj.values) |> setNames(c("T1", "W", "k"))
+  save_png(
+    bind_rows(
+      prior  |> mutate(type = "Prior"),
+      adj_df |> mutate(type = "Posterior")
+    ) |>
+      pivot_longer(c(T1, W, k), names_to = "param", values_to = "value") |>
+      ggplot(aes(x = value, color = type, fill = type)) +
+      geom_density(alpha = 0.2) +
+      facet_wrap(~param, scales = "free") +
+      scale_color_manual(values = c("Prior" = "grey50", "Posterior" = "firebrick")) +
+      scale_fill_manual(values  = c("Prior" = "grey50", "Posterior" = "firebrick")) +
+      labs(title = "Prior vs posterior (regression-adjusted)",
+           x = "Value", y = "Density", color = NULL, fill = NULL) +
+      theme_minimal(),
+    "posterior.png", w = 12, h = 5
+  )
 }
 
 # ── Main: loop over theta2 values ─────────────────────────────────────────────
@@ -201,15 +228,11 @@ for (i in seq_along(THETA2_VALS)) {
   message(sprintf("\n── %s  %s (theta2 = %s) ──────────────────────────",
                   SCALE, label, theta2))
 
-  particles <- tibble(
-    Sim          = integer(),
-    T1           = double(),
-    W            = double(),
-    k            = double(),
-    Ratio_2014   = double(),
-    Antigen_2016 = double(),
-    MF_2016      = double()
-  )
+  csv_name <- sprintf("fit_%s.csv", suffix)
+  csv_path <- file.path(out_theta, csv_name)
+  if (file.exists(csv_path)) file.remove(csv_path)  # start fresh each run
+
+  results_list <- vector("list", N_PARTICLES)
 
   for (p in seq_len(N_PARTICLES)) {
 
@@ -219,61 +242,64 @@ for (i in seq_along(THETA2_VALS)) {
 
     write_csv(
       tibble(Theta_1 = t1, Theta_2 = theta2, Agg = k, WorktoNot = w),
-      file.path(data_dir, "TranParams.csv")
+      file.path(data_dir, "tran_params.csv")
     )
 
-    id       <- sprintf("%s_%s_p%04d", TSV_PREFIX, suffix, p)
+    id       <- sprintf("%s_p%04d", suffix, p)
     out_file <- file.path(output_dir, id)
 
+    message(sprintf("  Running particle %d / %d", p, N_PARTICLES))
     run_model(id)
 
     if (file.exists(out_file)) {
       stats <- parse_output(out_file)
       file.remove(out_file)
-      particles <- bind_rows(particles,
-        mutate(stats, Sim = p, T1 = t1, W = w, k = k)
-      )
+      results_list[[p]] <- mutate(stats, Sim = p, T1 = t1, W = w, k = k)
     } else {
       message(sprintf("  Warning: no output for p=%d", p))
     }
-
-    if (p %% 5 == 0) message(sprintf("  %d / %d particles", p, N_PARTICLES))
+    
+    message(sprintf("  %d / %d particles", p, N_PARTICLES))
+    if (p %% 5 == 0) {
+      write_csv(bind_rows(results_list), csv_path)
+    }
   }
 
-  tsv_name <- sprintf("fit_%s%s.tsv", TSV_PREFIX, suffix)
-  tsvr_name <- sprintf("fit_%s%sr.tsv", TSV_PREFIX, suffix)
-
-  write_tsv(particles, file.path(out_theta, tsv_name))
-  write_tsv(dplyr::select(particles, -Ratio_2014), file.path(out_theta, tsvr_name))
+  particles <- bind_rows(results_list)
 
   # ── ABC-GLM ──────────────────────────────────────────────────────────────────
   complete <- particles |>
-    drop_na(Antigen_2016, MF_2016) |>
+    drop_na(ANT, MF, ICC) |>
     group_by(Sim, T1, W, k) |>
     summarise(
-      Antigen_2016 = mean(Antigen_2016),
-      MF_2016      = mean(MF_2016),
+      ANT = mean(ANT),
+      MF  = mean(MF),
+      ICC = mean(ICC),
       .groups = "drop"
     )
   
   message(sprintf("  %d / %d complete rows for ABC", nrow(complete), nrow(particles)))
   
   # L1 rejection: keep closest ABC_TOL fraction by L1 distance
-  obs_vec <- c(OBS_ANT_2016, OBS_MF_2016)
-  ss_mat  <- as.matrix(dplyr::select(complete, Antigen_2016, MF_2016))
+  obs_vec <- c(OBS_ANT_2016, OBS_MF_2016, OBS_ICC_2016)
+  ss_mat  <- as.matrix(dplyr::select(complete, ANT, MF, ICC))
   l1_dist <- rowSums(abs(sweep(ss_mat, 2, obs_vec)))
-  accepted <- complete[l1_dist <= quantile(l1_dist, 0.03), ]
+  accepted <- complete[l1_dist <= quantile(l1_dist, ABC_TOL), ]
   message(sprintf("  %d particles accepted after L1 rejection (tol = %.0f%%)",
-                  nrow(accepted), 0.03 * 100))
+                  nrow(accepted), ABC_TOL * 100))
 
   # GLM post-sampling adjustment on accepted particles
   fit <- abc(
     target  = obs_vec,
     param   = dplyr::select(accepted, T1, W, k),
-    sumstat = dplyr::select(accepted, Antigen_2016, MF_2016),
+    sumstat = dplyr::select(accepted, ANT, MF, ICC),
     tol     = 1.0,
     method  = "loclinear",
-    transf  = "none"
+    transf  = c("logit", "logit", "logit"),
+    logit.bounds = matrix(c(T1_MIN, T1_MAX,
+                            W_MIN,  W_MAX,
+                            K_MIN,  K_MAX),
+                          nrow = 3, byrow = TRUE)
   )
 
   prior <- tibble(
@@ -281,8 +307,14 @@ for (i in seq_along(THETA2_VALS)) {
     W  = runif(N_POSTERIOR, W_MIN,  W_MAX),
     k  = runif(N_POSTERIOR, K_MIN,  K_MAX)
   )
-  write_abc_glm_files(fit, out_theta, label, prior)
+  write_abc_glm_files(fit, out_theta, label, prior,
+                      complete, accepted, l1_dist, obs_vec)
   message(sprintf("  Written to %s", out_theta))
 }
 
 message("\nDone. Results in ", fit_base)
+
+variation_dat |> 
+  filter(is.na(value))
+
+

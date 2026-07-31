@@ -51,14 +51,14 @@ Similarly, should the distribution of prevalences among groups also change?
 
 Antigen positive (cout-ed when running model) is a double when it should be an int
 
-Running the model should make a .netfil file (like a .iqtree file) that contains the command run, the start and end time, a copy of MDA_params.csv and InitParams.csv
+Running the model should make a .netfil file (like a .iqtree file) that contains the command run, the start and end time, a copy of MDA_PARAMS.csv and InitParams.csv
 Maybe params.h?
 Running model will create a folder within output/ not a single csv
 
 Values of theta1, theta2, agg, worktonot used
 Etc.
 
-sim_years should depend on ABC_fitting = true or note (7 if true, 21 otherwise)
+SIM_YEARS should depend on ABC_FITTING = true or note (7 if true, 21 otherwise)
 
 Check whether the population does grow or shrink – it seems that it doesn’t?
 
@@ -66,8 +66,8 @@ What to do with single-person groups? And with rounding?
 
 
 Currently:
-    int recalc_years = 100; //how often we want to recalc commuters
-    char distance_type = 'r'; // r for road distance, e for euclidean 
+    int RECALC_YEARS = 100; //how often we want to recalc commuters
+    char DISTANCE_TYPE = 'r'; // r for road distance, e for euclidean 
 
 But doesn’t the paper say it should use euclidean distance? And regardless, this should be in param.h surely?
 

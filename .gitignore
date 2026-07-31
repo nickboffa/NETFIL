@@ -3,3 +3,13 @@ output/*
 data/.ipynb_checkpoints/*
 .Rproj.user
 .DS_Store
+.positai
+data/euc_dist.csv
+data/groups.csv
+data/road_dist.csv
+data/TranParams.csv
+model/main
+model/main.dSYM/
+comnbine_group_csvs.R
+.Rhistory
+data/MDAParams.csv

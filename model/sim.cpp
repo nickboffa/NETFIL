@@ -15,7 +15,7 @@ void Region::sim(int year, MDAStrat strat){
         init_prev = 0;
         init_ratio  = 0;
         // Keep seeding until prev and ratio within bounds
-        while(((init_prev < INIT_PREV_MIN) || (init_prev > INIT_PREV_MAX)) || ((init_ratio < INIT_RATIO_MIN) || (init_ratio > INIT_RATIO_MAX))){
+        while(((init_prev < init_prev_min) || (init_prev > init_prev_max)) || ((init_ratio < init_ratio_min) || (init_ratio > init_ratio_max))){
             seed_lf();
         }
         
@@ -33,16 +33,18 @@ void Region::sim(int year, MDAStrat strat){
         achieved_coverage[year] = 0;
 
 
-        int epi_dt = 7; 
-        int population_dt = 28;
+        const int epi_dt = 7; 
+        const int population_dt = 28;
 
         for(int day = 0; day < 364; ++day){
             
             if (day % epi_dt == 0){
-                if(!(inf_indiv.empty() & pre_indiv.empty() & uninf_indiv.empty())) { //If disease has not been eliminated
-                    
+                if(!(inf_indiv.empty() & pre_indiv.empty() & uninf_indiv.empty())) { // If disease has not been eliminated
                     calc_risk();
-                    update_epi_status(year, day, epi_dt); //update everyone's LF epi status (including the status of each of their worms)
+
+                    //update everyone's LF epi status 
+                    // (including the status of each of their worms)
+                    update_epi_status(year, day, epi_dt); 
                 }
             }   
         
@@ -55,7 +57,7 @@ void Region::sim(int year, MDAStrat strat){
                 implement_mda(year,strat);
             } 
         
-            if ((day % 91 == 0) && (!ABC_FITTING) && (day != 364)){
+            if ((day % 91 == 0) && (day != 364)){
                 output_epidemics(year, day, strat); 
             }
                 
@@ -73,11 +75,11 @@ void Region::seed_lf(){
     string line;
     vector<double> init_prev_table, init_k_table;
 
-    double minDifference = 1;
-    int closestIndex = -1;
+    double min_difference = 1;
+    int closest_index = -1;
 
     double ki; //init agg to get correct ant to mf prevalence
-    double in_agg; //inverse init agg used in calcs oftern
+    double in_agg; //inverse init agg used in calcs often
     double mean_load; //mean worm burden in group
 
     while (getline(file, line)) {
@@ -91,16 +93,16 @@ void Region::seed_lf(){
     vector<double> bite_scales {};
     file.close();
     for (int i = 0; i < init_prev_table.size(); ++i) { //now given the prev we are finding the init aggregation from values we have calculated previously (finding the roots here was too intensive so I found them previously in mathematica and included them here)
-        double difference = abs(init_prev_table[i] - ANT_0);
-        if (difference < minDifference) {
-            minDifference = difference;
-            closestIndex = i;
+        double difference = abs(init_prev_table[i] - ant_0);
+        if (difference < min_difference) {
+            min_difference = difference;
+            closest_index = i;
         }
     }
 
-    ki = init_k_table[closestIndex];
+    ki = init_k_table[closest_index];
     in_agg = 1.0 / ki;
-    mean_load = ki*(1-pow((1-ANT_0),in_agg))/pow((1-ANT_0),in_agg);
+    mean_load = ki*(1-pow((1-ant_0),in_agg))/pow((1-ant_0),in_agg);
     prob_worms(ki, mean_load); 
 
     //iterating over groups
@@ -109,12 +111,14 @@ void Region::seed_lf(){
         double group_prev; //antigen prev in our group
         Group *grp = j->second;
 
-        if (groups.size() > 1){ //for multiple groups we need to determine antigen prev which is clustered at the group level
-            double group_effect = normal(0.0,SIGMA_G);
-            double group_log_odds = group_effect + BETA_0;
+        if (groups.size() > 1) { 
+            // for multiple groups we need to determine antigen prev 
+            // which is clustered at the group level
+            double group_effect = normal(0.0, sigma_group);
+            double group_log_odds = group_effect + beta_0;
             group_prev = 1/(1+exp(-group_log_odds));
         } else {
-            group_prev = ANT_0; //for single groups we already know the prev!
+            group_prev = ant_0; //for single groups we already know the prev!
         }
 
         for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){

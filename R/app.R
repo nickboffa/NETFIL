@@ -8,8 +8,9 @@ source("R/prep_output_for_shiny.R")
 
 # ── Pre-load datasets ──────────────────────────────────────────────────────────
 DATASETS <- list(
-  "Many"      = prep_csv_for_shiny("Many",      "many_3mda_x15.csv"), # many_test for 5x 0MDA
-  "Raster660" = prep_csv_for_shiny("Raster660", "r660_3mda_x15.csv") # raster660_test for 5x 0MDA
+  "Many"      = prep_csv_for_shiny("Many",      "many_2mda_x15.csv"), # many_test for 5x 0MDA
+  "Raster660" = prep_csv_for_shiny("Raster660", "r660_2mda_x15.csv"), # raster660_test for 5x 0MDA
+  "Raster220" = prep_csv_for_shiny("Raster220", "r220_2mda_x15.csv")
 )
 
 # ── User-adjustable parameters ─────────────────────────────────────────────────
@@ -25,19 +26,19 @@ df_all_overall <- bind_rows(lapply(names(DATASETS), function(nm) {
   DATASETS[[nm]] %>%
     filter(!is.na(lat), !is.na(lon)) %>%
     group_by(sim_i, Time) %>%
-    summarise(Mf_sim = mean(Mf_prev, na.rm = TRUE), .groups = "drop") %>%
+    summarise(mf_sim = mean(mf_prev, na.rm = TRUE), .groups = "drop") %>%
     mutate(Time_round = round(Time, 2)) %>%
     group_by(Time_round) %>%
     summarise(
-      Mf_mean = mean(Mf_sim,            na.rm = TRUE),
-      Mf_lo   = quantile(Mf_sim, 0.05,  na.rm = TRUE),
-      Mf_hi   = quantile(Mf_sim, 0.95,  na.rm = TRUE),
+      mf_mean = mean(mf_sim,            na.rm = TRUE),
+      mf_lo   = quantile(mf_sim, 0.05,  na.rm = TRUE),
+      mf_hi   = quantile(mf_sim, 0.95,  na.rm = TRUE),
       .groups = "drop"
     ) %>%
     mutate(Model = nm)
 }))
 
-Y_MAX_ALL   <- max(df_all_overall$Mf_hi, na.rm = TRUE) * 1.1
+Y_MAX_ALL   <- max(df_all_overall$mf_hi, na.rm = TRUE) * 1.1
 # Vline trace index (0-based): 2 traces per model (ribbon+line) + 1 current-sim line + vline
 VLINE_TRACE <- as.integer(2L * length(DATASETS) + 1L)
 
@@ -251,7 +252,7 @@ server <- function(input, output, session) {
       group_by(Group, Time, lat, lon) %>%
       summarise(mf = mean(mf, na.rm = TRUE), pop = mean(pop, na.rm = TRUE),
                 .groups = "drop") %>%
-      mutate(Mf_prev = 100 * mf / pop, Time_round = round(Time, 2))
+      mutate(mf_prev = 100 * mf / pop, Time_round = round(Time, 2))
   })
 
   # ── Current-sim line: per-time mean across groups ──────────────────────────
@@ -259,7 +260,7 @@ server <- function(input, output, session) {
     dataset() %>%
       filter(sim_i == sim_val()) %>%
       group_by(Time) %>%
-      summarise(Mf_sim = mean(Mf_prev, na.rm = TRUE), .groups = "drop") %>%
+      summarise(mf_sim = mean(mf_prev, na.rm = TRUE), .groups = "drop") %>%
       mutate(Time_round = round(Time, 2))
   })
 
@@ -299,13 +300,13 @@ server <- function(input, output, session) {
 
   # ── Stats (from selected simulation) ──────────────────────────────────────
   output$stat_overall <- renderText({
-    round(mean(current_data()$Mf_prev, na.rm = TRUE), 2)
+    round(mean(current_data()$mf_prev, na.rm = TRUE), 2)
   })
   output$stat_max <- renderText({
-    paste0(round(max(current_data()$Mf_prev, na.rm = TRUE), 2), "%")
+    paste0(round(max(current_data()$mf_prev, na.rm = TRUE), 2), "%")
   })
   output$stat_min <- renderText({
-    paste0(round(min(current_data()$Mf_prev, na.rm = TRUE), 2), "%")
+    paste0(round(min(current_data()$mf_prev, na.rm = TRUE), 2), "%")
   })
 
   # ── Plotly ─────────────────────────────────────────────────────────────────
@@ -325,12 +326,12 @@ server <- function(input, output, session) {
       dfo <- filter(df_all_overall, Model == nm)
       p <- p %>%
         add_ribbons(data = dfo,
-                    x = ~Time_round, ymin = ~Mf_lo, ymax = ~Mf_hi,
+                    x = ~Time_round, ymin = ~mf_lo, ymax = ~mf_hi,
                     fillcolor = MODEL_RIBBON_COL[nm],
                     line = list(color = "transparent"),
                     hoverinfo = "none", showlegend = FALSE) %>%
         add_lines(data = dfo,
-                  x = ~Time_round, y = ~Mf_mean,
+                  x = ~Time_round, y = ~mf_mean,
                   name = nm,
                   line = list(color = MODEL_LINE_COL[nm], width = 2),
                   hovertemplate = paste0(nm, " – %{x:.1f}: %{y:.2f}%<extra></extra>"))
@@ -338,7 +339,7 @@ server <- function(input, output, session) {
 
     p %>%
       add_lines(data = df_sim,
-                x = ~Time_round, y = ~Mf_sim,
+                x = ~Time_round, y = ~mf_sim,
                 name = paste0(input$model_select, " sim ", sim_val()),
                 line = list(color = "rgba(255,255,255,0.6)", width = 1.5, dash = "dash"),
                 hovertemplate = "%{x:.1f}: %{y:.2f}%<extra></extra>") %>%
@@ -410,7 +411,7 @@ server <- function(input, output, session) {
     labels <- lapply(seq_len(nrow(cd)), function(i) {
       htmltools::HTML(paste0(
         group_label(cd$Group[i]),
-        "<b>Mf+:</b> ", round(cd$Mf_prev[i], 2), "% (",
+        "<b>Mf+:</b> ", round(cd$mf_prev[i], 2), "% (",
         round(cd$mf[i]), "/", round(cd$pop[i]), ")"
       ))
     })
@@ -419,8 +420,8 @@ server <- function(input, output, session) {
       addCircleMarkers(
         data = cd, lng = ~lon, lat = ~lat, layerId = ~Group,
         radius      = radii,
-        color       = ~pal(clamp_prev(Mf_prev)),
-        fillColor   = ~pal(clamp_prev(Mf_prev)),
+        color       = ~pal(clamp_prev(mf_prev)),
+        fillColor   = ~pal(clamp_prev(mf_prev)),
         fillOpacity = 0.85, stroke = TRUE, weight = 1, opacity = 0.6,
         group = "points", label = labels,
         labelOptions = labelOptions(

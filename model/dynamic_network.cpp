@@ -100,10 +100,10 @@ void Region::handle_commute(int year){
 
 void Region::calc_risk(){
     
-    char form = 'l'; //l for limitation, f for facilation, or anything else for linear 
+    char form = 'l'; // l for limitation, f for facilation, or anything else for linear 
     bool single = false;
 
-    if(groups.size() == 1){
+    if (groups.size() == 1) {
         single = true;
     }
 
@@ -129,7 +129,7 @@ void Region::calc_risk(){
                 Agent *agt =k->second;
                 int age = int(agt->age / 365);
                 double c = 1.0;
-                if(age <= 15) c = exposure_by_age[age];
+                if (age <= 15) c = exposure_by_age[age];
                 db += agt->bite_scale*c;    
             }
             grp->day_bites = db;
@@ -163,19 +163,20 @@ void Region::calc_risk(){
     
     for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //looping over groups
         Group *grp = j->second;
-        //looping over all people!
+        //looping over all people
         
-        for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //looping over all people will do both night and day bites in same loop
+        for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ 
+            //looping over all people will do both night and day bites in same loop
         
             Agent *agt = k->second; //our person
-            char prev_status = agt ->status;
+            char previous_status = agt->status;
             double c = 1; //
             int age = int(agt->age / 365);
             if (age <= 15) c = exposure_by_age[age];
             
             agt->sim_bites(c, worktonot, single); // simulating the bites!
 
-            if(agt->status == 'E' && prev_status == 'S'){
+            if(agt->status == 'E' && previous_status == 'S'){
                 pre_indiv.insert(pair<int, Agent*>(agt->aid, agt));
             }
         }

@@ -13,7 +13,10 @@ int sim_i = 0;
 string prv_out_loc;
 
 int main(int argc, const char * argv[]){
+    if (argc < 2) { cerr << "Forget argument. Correct use: ./main <output_name>\n"; return 1; }
+
     time_t start_time = time(nullptr);
+    clock_t cpu_start = clock();
     prv_out_loc = argv[1];
    
     Region *rgn = new Region(region_id, region_name);
@@ -22,8 +25,8 @@ int main(int argc, const char * argv[]){
 
     //Counting the number of different simulations we will perform
     int mda_scenario_count = count_mda_scenarios(mda_data);
-    // cout << "There are " << mda_scenario_count << " scenarios" << endl;
-    
+
+    cout << "made it to here" << endl;
     //now looping over scenarios
     for (int scenario_count = 0; scenario_count < mda_scenario_count; ++scenario_count){
 
@@ -49,17 +52,20 @@ int main(int argc, const char * argv[]){
     }
 
     time_t end_time = time(nullptr);
+    clock_t cpu_end = clock();
 
     string filename = string(OUTDIR) + prv_out_loc;
-#if !ABC_FITTING
-    write_netfil(
-        filename,
-        start_time,
-        end_time,
-        rgn,
-        mda_data
-    );
-#endif
+    #if !ABC_FITTING
+        write_netfil(
+            filename,
+            start_time,
+            end_time,
+            cpu_start,
+            cpu_end,
+            rgn,
+            mda_data
+        );
+    #endif
 
     return 0;
 } 

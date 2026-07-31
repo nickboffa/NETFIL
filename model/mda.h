@@ -31,18 +31,24 @@ public:
         part_ster_magnitude = PSM;
     }
     
-    void print_drugs(ostream& out = cout){
-        out << "Drug's kill_prob: " << kill_prob << endl;
-        out << "Drug's full_ster_prob: " << full_ster_prob << endl;
-        out << "Drug's part_ster_prob: " << part_ster_prob << endl;
-        out << "Drug's ster_dur: " << ster_dur << endl;
-        out << "Drug's part_ster_magnitude: " << part_ster_magnitude << endl;
+    void print_drugs(ostream& out = cout) const {
+        out << "kill_prob: " << kill_prob << endl;
+        out << "full_ster_prob: " << full_ster_prob << endl;
+        out << "part_ster_prob: " << part_ster_prob << endl;
+        out << "ster_dur: " << ster_dur << endl;
+        out << "part_ster_magnitude: " << part_ster_magnitude << endl;
     }
     
 };
 
+inline const map<string, Drugs> DRUG_DICT = {
+    {"MoxDA", Drugs(0.457,0.514,0,100,0.5)},
+    {"IDA", Drugs(0.364,0.261,0,100,0.5)}
+};
+
 class MDAStrat{
 public:
+    string name; // Scenario name
     double coverage; // MDA coverage (whole population, not just target)
     Drugs drug; // Drug profile
     int min_age; // Min age to take MDA
@@ -52,7 +58,8 @@ public:
     vector<int> mda_years; // Vector storing all mda years
     int n_sims; // Number of simulations
 
-    MDAStrat(double C, Drugs D, int MN, int S, int N, int Y, int NS){
+    MDAStrat(string NM, double C, Drugs D, int MN, int S, int N, int Y, int NS){
+        name = NM;
         coverage = C;
         drug = D;
         min_age = MN;
@@ -69,13 +76,13 @@ public:
     }
 
     void print_mda_strat(ostream& out = cout){
+        out << "Drug: " << name << endl;
         out << "Coverage: " << coverage * 100 << "%" << endl;
         out << "Minimum age: " << min_age << endl;
         out << "First year of MDA: " << mda_start_year << endl;
         out << "Number of rounds: " << n_mda_rounds << endl;
         out << "Years between rounds: " << years_between_rounds << endl;
         out << "Number of simulations: " << n_sims << endl;
-        drug.print_drugs(out);
     }
 
     bool is_mda_year(int Year){ // Returns true if given year is an MDA year for the strategy

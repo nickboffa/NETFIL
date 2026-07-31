@@ -24,8 +24,7 @@ int count_mda_scenarios(string filename){
     return mda_scenario_num;
 }
 
-MDAStrat get_mda_strat(string filename, int N)
-{
+MDAStrat get_mda_strat(string filename, int N) {
     ifstream in;
     
     in.open(filename.c_str());
@@ -47,12 +46,8 @@ MDAStrat get_mda_strat(string filename, int N)
     strcpy(str, line.c_str());
     char *p = NULL;
 
-    p = strtok(str, ",");       double coverage = atof(p);
-    p = strtok(NULL, ",");      double kill_prob = atof(p);
-    p = strtok(NULL, ",");      double full_ster_prob = atof(p);
-    p = strtok(NULL, ",");      double part_ster_prob = atof(p);
-    p = strtok(NULL, ",");      double ster_dur = atof(p);
-    p = strtok(NULL, ",");      double part_ster_magnitude = atof(p);
+    p = strtok(str, ",");       string name = p;
+    p = strtok(NULL, ",");      double coverage = atof(p);
     p = strtok(NULL, ",");      int min_age = atoi(p);
     p = strtok(NULL, ",");      int mda_start_year = atoi(p);
     p = strtok(NULL, ",");      int mda_num_round = atoi(p);
@@ -60,9 +55,8 @@ MDAStrat get_mda_strat(string filename, int N)
     p = strtok(NULL, ",");      int num_sims = atoi(p);
    
     delete []str;
-
-    Drugs drug {kill_prob, full_ster_prob, part_ster_prob, ster_dur, part_ster_magnitude};
-    MDAStrat strat {coverage, drug, min_age, mda_start_year, mda_num_round, mda_years_between_rounds, num_sims};
+    Drugs mda_drug = DRUG_DICT.at(name);
+    MDAStrat strat {name, coverage, mda_drug, min_age, mda_start_year, mda_num_round, mda_years_between_rounds, num_sims};
 
     return strat;
 }

@@ -86,11 +86,17 @@ bool Region::pop_reload(){
     string file = CONFIG;   file = file + rname;    file = file + ".init";
     ifstream in(file.c_str());
     
-    if(!in) return false;
+    if(!in) {
+        cerr << "pop_reload: could not open " << file << endl;
+        return false;
+    }
 
     string line;
     getline(in, line);
-    if(line != "TRUE") return false;
+    if(line != "TRUE") {
+        cerr << "pop_reload: first line was \"" << line << "\" not TRUE" << endl;
+        return false;
+    }
     
     getline(in, line);      rpop = atoi(line.c_str());
     getline(in, line);      next_aid = atoi(line.c_str());
@@ -383,141 +389,7 @@ void Region::read_parameters(){
         in.close();
     }
     
-    if (ABC_FITTING){
-
-        file = TRAN_PARAM;
-        in.open(file.c_str());
-        getline(in, line);
-        getline(in,line);
-        char *str = new char[line.size()+1];
-        strcpy(str, line.c_str());
-        char *p = NULL;
-    
-        p = strtok(str, " ");      double theta_1 = atof(p);
-        p = strtok(NULL, " ");     double theta_2 = atof(p);
-        p = strtok(NULL, " ");     double k = atof(p);
-        p = strtok(NULL, " ");     double w2n = atof(p);
-
-        delete []str;
-        in.close();
-        
-        theta1 = theta_1;
-        theta2 = theta_2;
-        theta3 = 1 / (1 - exp(-theta2));
-        agg_param = k;
-        agg_scale = 1 / k;
-        worktonot  = w2n;
-    
-    }
-    else{
-        if (!RUN_OFF_FITTED){ //running from point estimates from Trans-Params
-            file = DATADIR; file = file + TRAN_PARAM;
-            in.open(file.c_str());
-            getline(in,line);
-            getline(in,line);
-            char *str = new char[line.size()+1];
-            strcpy(str, line.c_str());
-            char *p = NULL;
-        
-            p = strtok(str, ",");      double theta_1 = atof(p);
-            p = strtok(NULL, ",");     double theta_2 = atof(p);
-            p = strtok(NULL, ",");     double k = atof(p);
-            p = strtok(NULL, ",");     double w2n = atof(p);
-
-            delete []str;
-            in.close();
-            
-            theta1 = theta_1;
-            theta2 = theta_2;
-            theta3 = 1 / (1 - exp(-theta2));
-            agg_param = k;
-            agg_scale = 1 / k;
-            worktonot  = w2n;
-       
-        }
-        else if (RUN_OFF_FITTED){
-                        
-            
-            file = DATADIR; file = file + TRAN_PARAM;
-            
-            in.open(file.c_str());
-            getline(in, line);
-            getline(in,line);
-            char *str = new char[line.size()+1];
-            strcpy(str, line.c_str());
-            char *p = NULL;
-        
-            p = strtok(str, ",");      double theta_1 = atof(p);
-            p = strtok(NULL, ",");     double theta_2 = atof(p);
-            p = strtok(NULL, ",");     double k = atof(p);
-            p = strtok(NULL, ",");     double w2n = atof(p);
-
-            delete []str;
-            in.close();
-            
-            theta2 = theta_2;
-            theta3 = 1 / (1 - exp(-theta2));
-            //Theta1
-            string loc = "Fitted/Theta1.txt";
-            vector<double> values;
-            int n_values;
-            int w_value;
-
-            file = DATADIR; file = DATADIR + loc;
-            in.open(file.c_str());
-            
-            while(getline(in, line)){
-                values.push_back(atof(line.c_str()));
-            }
-            in.close();
-
-            shuffle(values.begin(),values.end(), gen);
-           
-            theta1 = values[1];
-           
-            values.clear();
-            values.shrink_to_fit(); 
-
-            loc = "Fitted/Agg.txt";
-            file = DATADIR; file = DATADIR + loc;
-            in.open(file.c_str());
-          
-            while(getline(in, line)){
-                values.push_back(atof(line.c_str()));
-            }
-            in.close();
-
-            shuffle(values.begin(),values.end(), gen);
-            
-            agg_param = values[1];
-            agg_scale = 1 / agg_param;
-            
-            values.clear();
-            values.shrink_to_fit();
-           
-            if (group_blocks > 1){
-                loc = "Fitted/Work.txt";
-                file = DATADIR; file = DATADIR + loc;
-                in.open(file.c_str());
-
-                while(getline(in, line)){
-                    values.push_back(atof(line.c_str()));
-                }
-                in.close();
-                shuffle(values.begin(),values.end(), gen);
-                worktonot = values[1];
-
-                values.clear();
-                values.shrink_to_fit();
-            }
-            else {
-                worktonot = 0.1; 
-            }
-        }
-    }
-
-    //read in init params
-    file = DATADIR; file = file + INIT_PARAMS;
+    file = DATADIR; file = file + TRAN_PARAM;
     in.open(file.c_str());
     getline(in,line);
     getline(in,line);
@@ -525,17 +397,68 @@ void Region::read_parameters(){
     strcpy(str, line.c_str());
     char *p = NULL;
 
-    p = strtok(str, ",");     double init_ls = atof(p);
-    p = strtok(NULL, ",");     double init_mi = atof(p);
-    p = strtok(NULL, ",");     double init_itoa = atof(p);
-    p = strtok(NULL, ",");     double init_ianda = atof(p);
+    p = strtok(str, ",");      double theta_1 = atof(p);
+    p = strtok(NULL, ",");     double theta_2 = atof(p);
+    p = strtok(NULL, ",");     double k = atof(p);
+    p = strtok(NULL, ",");     double w2n = atof(p);
+
     delete []str;
+    in.close();
+
+    theta1 = theta_1;
+    theta2 = theta_2;
+    theta3 = 1 / (1 - exp(-theta2));
+    agg_param = k;
+    agg_scale = 1 / k;
+    worktonot  = w2n;
+
+    //read in init params
+    file = DATADIR; file = file + INIT_PARAMS;
+    in.open(file.c_str());
+    getline(in,line);
+    getline(in,line);
+    char *ip_str = new char[line.size()+1];
+    strcpy(ip_str, line.c_str());
+    char *ip = NULL;
+
+    ip = strtok(ip_str, ",");     double init_ls = atof(ip);
+    ip = strtok(NULL,   ",");     double init_mi = atof(ip);
+    ip = strtok(NULL,   ",");     double init_itoa = atof(ip);
+    ip = strtok(NULL,   ",");     double init_ianda = atof(ip);
+    delete []ip_str;
     in.close();
     
     init_beta_b = init_ls;
     init_poisson = init_mi;
     immature_to_antigen = init_itoa;
     immature_and_ant = init_ianda;
+
+    file = DATADIR; file = file + CLUSTERING_PARAMS;
+    in.open(file.c_str());
+    getline(in, line);  // skip header
+    getline(in, line);
+    char *sp_str = new char[line.size()+1];
+    strcpy(sp_str, line.c_str());
+    char *sp = NULL;
+    sp = strtok(sp_str, ",");  sigma_group = atof(sp);
+    sp = strtok(NULL, ",");    beta_0 = atof(sp);
+    delete []sp_str;
+    in.close();
+
+    file = DATADIR; file = file + COUNTRY_PARAMS;
+    in.open(file.c_str());
+    getline(in, line);  // skip header
+    getline(in, line);
+    char *cp_str = new char[line.size()+1];
+    strcpy(cp_str, line.c_str());
+    char *cp = NULL;
+    cp = strtok(cp_str, ",");  ant_0         = atof(cp);
+    cp = strtok(NULL, ",");    init_prev_min  = atof(cp);
+    cp = strtok(NULL, ",");    init_prev_max  = atof(cp);
+    cp = strtok(NULL, ",");    init_ratio_min = atof(cp);
+    cp = strtok(NULL, ",");    init_ratio_max = atof(cp);
+    delete []cp_str;
+    in.close();
 }
 
 void Region::reset_population(){
