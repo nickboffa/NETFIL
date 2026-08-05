@@ -1,94 +1,87 @@
 #ifndef mda_h
-#include "params.h"
 #define mda_h
+#include "params.h"
+#include <map>
+#include <string>
 #include <vector>
-#include <algorithm>
 
 using namespace std;
 
-class MDAStrat;
-class Drugs;
-
-
-int count_mda_scenarios(string filename);
-MDAStrat get_mda_strat(string filename, int N);
-
-
-class Drugs{ //Drug profile for MDA
+// ── Drug effects ─────────────────────────────────────────────────────────────
+class Drugs {
 public:
-    double kill_prob; // prob will kill worms
-    double full_ster_prob; // prob will fully sterilise
-    double part_ster_prob; // prob will partially sterilise
-    double ster_dur; // duration of sterilisation
-    double part_ster_magnitude; //magnitude of partial sterilisation
+    double kill_prob;
+    double full_ster_prob;
+    double part_ster_prob;
+    double ster_dur;
+    double part_ster_magnitude;
 
-    
-    Drugs(double K=0.0, double FSP=0.0, double PSP=0.0, double SD=0.0, double PSM=0.0){
-        kill_prob = K;
-        full_ster_prob = FSP;
-        part_ster_prob = PSP;
-        ster_dur = SD;
-        part_ster_magnitude = PSM;
-    }
-    
+    Drugs(double K=0, double FSP=0, double PSP=0, double SD=0, double PSM=0)
+        : kill_prob(K), full_ster_prob(FSP), part_ster_prob(PSP),
+          ster_dur(SD), part_ster_magnitude(PSM) {}
+
     void print_drugs(ostream& out = cout) const {
-        out << "kill_prob: " << kill_prob << endl;
-        out << "full_ster_prob: " << full_ster_prob << endl;
-        out << "part_ster_prob: " << part_ster_prob << endl;
-        out << "ster_dur: " << ster_dur << endl;
+        out << "kill_prob: "           << kill_prob           << endl;
+        out << "full_ster_prob: "      << full_ster_prob      << endl;
+        out << "part_ster_prob: "      << part_ster_prob      << endl;
+        out << "ster_dur: "            << ster_dur            << endl;
         out << "part_ster_magnitude: " << part_ster_magnitude << endl;
     }
-    
 };
 
+// DA (DEC + Albendazole) parameters are placeholders — verify against
+// calibrated literature values before running WSM simulations.
 inline const map<string, Drugs> DRUG_DICT = {
-    {"MoxDA", Drugs(0.457,0.514,0,100,0.5)},
-    {"IDA", Drugs(0.364,0.261,0,100,0.5)}
+    {"MoxDA", Drugs(0.457, 0.514, 0, 100, 0.5)},
+    {"IDA",   Drugs(0.403, 0.246, 0, 100, 0.5)},
+    {"DA",    Drugs(0.403, 0.246, 0, 100, 0.5)}
 };
 
-class MDAStrat{
-public:
-    string name; // Scenario name
-    double coverage; // MDA coverage (whole population, not just target)
-    Drugs drug; // Drug profile
-    int min_age; // Min age to take MDA
-    int mda_start_year; // MDA start year
-    int n_mda_rounds; // Number of rounds
-    int years_between_rounds; // Time between rounds
-    vector<int> mda_years; // Vector storing all mda years
-    int n_sims; // Number of simulations
+// Combines the Hardy et al IDA and DA data
+// To use a clearance rate of (27 + 45) / (39 + 72) = 64.9% for both instead?
 
-    MDAStrat(string NM, double C, Drugs D, int MN, int S, int N, int Y, int NS){
-        name = NM;
-        coverage = C;
-        drug = D;
-        min_age = MN;
-        mda_start_year = S;
-        n_mda_rounds = N;
-        years_between_rounds = Y;
-        n_sims = NS;
-
-        mda_years.resize(n_mda_rounds);
-        for(int i = 0; i<n_mda_rounds; ++i){
-            mda_years[i] = mda_start_year + i * years_between_rounds;
-            cout << mda_years[i] << " is a MDA year" << endl;
-        }   
-    }
-
-    void print_mda_strat(ostream& out = cout){
-        out << "Drug: " << name << endl;
-        out << "Coverage: " << coverage * 100 << "%" << endl;
-        out << "Minimum age: " << min_age << endl;
-        out << "First year of MDA: " << mda_start_year << endl;
-        out << "Number of rounds: " << n_mda_rounds << endl;
-        out << "Years between rounds: " << years_between_rounds << endl;
-        out << "Number of simulations: " << n_sims << endl;
-    }
-
-    bool is_mda_year(int Year){ // Returns true if given year is an MDA year for the strategy
-        return find(mda_years.begin(), mda_years.end(), Year) != mda_years.end();
-    }
-
+// ── One historical MDA round ──────────────────────────────────────────────────
+struct MDARound {
+    int    year;
+    int    month    = 0;   // 0 = not specified → default to day 28
+    string drug;
+    double coverage = 0.0;
+    int    min_age  = 2;
 };
+
+// ── Country-level simulation configuration ────────────────────────────────────
+struct CountryConfig {
+    int    init_year;
+    int    end_year;
+    // Seeding
+    double init_ant_prev;      // target ANT prevalence for initial seeding (proportion 0–1)
+    double init_ant_prev_min;  // acceptance lower bound for seeded ANT prevalence (proportion 0–1)
+    double init_ant_prev_max;  // acceptance upper bound for seeded ANT prevalence (proportion 0–1)
+    // MF seeding mode set by which JSON keys are present in "seeding":
+    //   init_mf_prev_*      → use_mf_prev_mode = true  (bounds on MF prevalence = inf/rpop)
+    //   init_mf_ant_ratio_* → use_mf_prev_mode = false (bounds on MF:ANT ratio  = inf/ant_pos)
+    bool   use_mf_prev_mode;
+    double init_mf_prev_min        = 0;  // set when use_mf_prev_mode == true
+    double init_mf_prev_max        = 0;
+    double init_mf_ant_ratio_min   = 0;  // set when use_mf_prev_mode == false
+    double init_mf_ant_ratio_max   = 0;
+    vector<MDARound> mda_rounds;
+
+    int sim_years() const { return end_year - init_year; }
+};
+
+// ── Per-year MDA event passed to Region::sim() ────────────────────────────────
+// apply=false means no MDA this year; all other fields are ignored.
+struct MDAEvent {
+    bool   apply       = false;
+    int    day         = 28;   // day-of-year to apply MDA
+    string drug_name   = "";
+    Drugs  drug_params;
+    double coverage    = 0.0;
+    int    min_age     = 0;
+};
+
+CountryConfig load_country_config(const string& path);
+MDAEvent      make_mda_event(const CountryConfig& cfg, int calendar_year);
 
 #endif /* mda_h */

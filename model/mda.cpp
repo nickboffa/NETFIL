@@ -1,62 +1,68 @@
 #include <iostream>
 #include <fstream>
-#include <cstring>
 #include "mda.h"
+#include "json.hpp"
+
 using namespace std;
+using json = nlohmann::json;
 
-int count_mda_scenarios(string filename){
-    //counting the number of different MDA scenerios that we are testing!
-
-    ifstream in;
-    string line;
-    
-    in.open(filename.c_str());
-    if(!in){
-        cout << "open " << filename << " failed" << endl;
+CountryConfig load_country_config(const string& path) {
+    ifstream f(path);
+    if (!f) {
+        cerr << "Could not open country config: " << path << "\n";
         exit(1);
     }
-    int mda_scenario_num {-1}; //Count the number of lines (not including the first, which is just the column titles)
+    json j = json::parse(f);
 
-    while (getline(in, line)){
-        ++mda_scenario_num;
+    CountryConfig cfg;
+    cfg.init_year = j.at("init_year");
+    cfg.end_year  = j.at("end_year");
+
+    const auto& s = j.at("seeding");
+    cfg.init_ant_prev     = s.at("init_ant_prev");
+    cfg.init_ant_prev_min = s.at("init_ant_prev_min");
+    cfg.init_ant_prev_max = s.at("init_ant_prev_max");
+
+    if (s.contains("init_mf_prev_min")) {
+        cfg.use_mf_prev_mode  = true;
+        cfg.init_mf_prev_min  = s.at("init_mf_prev_min");
+        cfg.init_mf_prev_max  = s.at("init_mf_prev_max");
+    } else {
+        cfg.use_mf_prev_mode       = false;
+        cfg.init_mf_ant_ratio_min  = s.at("init_mf_ant_ratio_min");
+        cfg.init_mf_ant_ratio_max  = s.at("init_mf_ant_ratio_max");
     }
-    in.close();
-    return mda_scenario_num;
+
+    for (const auto& r : j.value("mda_rounds", json::array())) {
+        MDARound round;
+        round.year     = r.at("year");
+        round.month    = r.value("month", 0);
+        round.drug     = r.at("drug");
+        round.coverage = r.at("coverage");
+        round.min_age  = r.value("min_age", 2);
+        cfg.mda_rounds.push_back(round);
+    }
+
+    cout << "Loaded country config: "
+         << cfg.init_year << "–" << cfg.end_year
+         << " (" << cfg.sim_years() << " years, "
+         << cfg.mda_rounds.size() << " MDA rounds)\n";
+
+    return cfg;
 }
 
-MDAStrat get_mda_strat(string filename, int N) {
-    ifstream in;
-    
-    in.open(filename.c_str());
-    if(!in){
-        cout << "open " << filename << " failed" << endl;
-        exit(1);
+MDAEvent make_mda_event(const CountryConfig& cfg, int calendar_year) {
+    for (const auto& r : cfg.mda_rounds) {
+        if (r.year == calendar_year) {
+            MDAEvent evt;
+            evt.apply      = true;
+            evt.day        = (r.month > 0) ? (r.month - 1) * 30 : 28;
+            evt.drug_name  = r.drug;
+            evt.drug_params = DRUG_DICT.at(r.drug);
+            evt.coverage   = r.coverage;
+            evt.min_age    = r.min_age;
+            return evt;
+        }
     }
-    
-    string line;
-
-    //skip N lines
-    for(int i = 0; i < N; ++i){
-        getline(in, line);
-    }
-    
-    getline(in,line);
-
-    char *str = new char[line.size()+1];
-    strcpy(str, line.c_str());
-    char *p = NULL;
-
-    p = strtok(str, ",");       string name = p;
-    p = strtok(NULL, ",");      double coverage = atof(p);
-    p = strtok(NULL, ",");      int min_age = atoi(p);
-    p = strtok(NULL, ",");      int mda_start_year = atoi(p);
-    p = strtok(NULL, ",");      int mda_num_round = atoi(p);
-    p = strtok(NULL, ",");      int mda_years_between_rounds = atoi(p);
-    p = strtok(NULL, ",");      int num_sims = atoi(p);
-   
-    delete []str;
-    Drugs mda_drug = DRUG_DICT.at(name);
-    MDAStrat strat {name, coverage, mda_drug, min_age, mda_start_year, mda_num_round, mda_years_between_rounds, num_sims};
-
-    return strat;
+    return MDAEvent{};
 }

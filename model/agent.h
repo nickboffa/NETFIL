@@ -10,7 +10,6 @@ using namespace std;
 //Classes that we need
 class Group;
 class Drugs;
-class MDAStrat;
 
 class Agent; //people in the model
 class Worm; //worms

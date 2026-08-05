@@ -47,14 +47,18 @@ THETA2_SUFFIX <- c("1")
 message("Copying ", COUNTRY, "/", SCALE, " scale data to data/...")
 scale_files <- list.files(file.path(data_dir, COUNTRY, "Scales", SCALE), full.names = TRUE)
 file.copy(scale_files, data_dir, overwrite = TRUE)
-file.copy(file.path(data_dir, COUNTRY, "mda_params.csv"), data_dir, overwrite = TRUE)
+file.copy(file.path(data_dir, COUNTRY, "country.json"), data_dir, overwrite = TRUE)
+writeLines(
+  c(paste0("country=", COUNTRY), paste0("scale=", SCALE), paste0("theta2=", THETA2_SUFFIX[1])),
+  file.path(data_dir, "current_state.txt")
+)
 
 # ── Helper: run model from model/ so DATADIR and OUTDIR resolve correctly ───────
 run_model <- function(id) {
   old_wd <- getwd()
   on.exit(setwd(old_wd))
   setwd(model_dir)
-  system2("./main", args = id, stdout = FALSE, stderr = FALSE)
+  system2("./main", args = c(id, N_REPS), stdout = FALSE, stderr = FALSE)
 }
 
 # ── Helper: parse output CSV for year-start summary statistics ─────────────────

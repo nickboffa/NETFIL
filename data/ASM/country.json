@@ -1,0 +1,12 @@
+{
+  "init_year": 2010,
+  "end_year": 2017,
+  "seeding": {
+    "init_ant_prev": 0.0325,
+    "init_ant_prev_min": 0.0315,
+    "init_ant_prev_max": 0.0335,
+    "init_mf_ant_ratio_min": 0.155,
+    "init_mf_ant_ratio_max": 0.175
+  },
+  "mda_rounds": []
+}

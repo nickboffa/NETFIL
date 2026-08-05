@@ -53,10 +53,8 @@ public:
 
 class Region{
 public:
-    int rid;                           //region ID 
-    string rname;                      //region name                   
-    double init_prev;              // initial prevalence
-    double init_ratio;
+    int rid;                           //region ID
+    string rname;                      //region name
     int rpop;                          //region population
     int next_aid;                      //agent ID tracker for births
     bool init;                         // Has the population been built before?    
@@ -80,11 +78,18 @@ public:
     double sigma_group;
     double beta_0;
 
-    double ant_0;
-    double init_prev_min;
-    double init_prev_max;
-    double init_ratio_min;
-    double init_ratio_max;
+    double init_ant_prev;      // target ANT prevalence for seeding (proportion 0–1)
+    double init_ant_prev_min;  // acceptance lower bound on seeded ANT prev (proportion 0–1)
+    double init_ant_prev_max;  // acceptance upper bound on seeded ANT prev (proportion 0–1)
+    bool   use_mf_prev_mode;
+    double init_mf_prev_min        = 0;  // set when use_mf_prev_mode == true  (MF prevalence = inf/rpop)
+    double init_mf_prev_max        = 0;
+    double init_mf_ant_ratio_min   = 0;  // set when use_mf_prev_mode == false (MF:ANT ratio  = inf/ant_pos)
+    double init_mf_ant_ratio_max   = 0;
+    // Computed by seed_lf() and used in the acceptance loop:
+    double init_ant_prev_obs;    // observed ANT prevalence  (proportion 0–1, = ant_pos/rpop)
+    double init_mf_prev_obs;     // observed MF prevalence   (proportion 0–1, = inf_indiv/rpop)
+    double init_ratio_obs;       // observed MF:ANT ratio    (= inf_indiv/ant_pos)
 
     double age_dist[N_AGE_GROUPS];     //container for the age distribution
     int age_dist_lower[N_AGE_GROUPS];
@@ -120,13 +125,17 @@ public:
     double birth_rate[N_AGE_GROUPS];
     double exposure_by_age[16];
 
-    double achieved_coverage[SIM_YEARS]; // the actual drug coverage achieved each year (for each year of the simulation). Will be zero for most years.
-    int number_treated[SIM_YEARS];
+    int start_year;   // set from CountryConfig.init_year in main()
+    int sim_years;    // set from CountryConfig.sim_years()  in main()
+    int n_sims_run = 0;             // set in main() after all sims complete
+    int total_seed_attempts = 0;    // accumulated across all runs in sim()
+    vector<double> achieved_coverage;  // indexed by model year (0-based)
+    vector<int>    number_treated;
 
     Region(int rid, string rname);
 
     //Functions that run on region
-    void sim(int year, MDAStrat strategy);                     //wrapper to run simulation
+    void sim(int year, MDAEvent evt);                           //wrapper to run simulation
     void handle_commute(int year);                               // generate commuter network and assign
     void remove_agent(Agent *agt);                                   //remove dead people from population
     void radt_model(char m);                                    //radiation model for daily trips (work/school)
@@ -138,7 +147,7 @@ public:
     void seed_lf();                                             //seed LF in population
     double mf_functional_form(char form, double worm_strength);            //converts worm strength to mf load
 
-    void implement_mda(int year, MDAStrat strat);           //MDA!
+    void implement_mda(int year, MDAEvent evt);              //MDA!
     
     bool pop_reload();
     void read_groups();                                 //read input data
@@ -148,7 +157,7 @@ public:
 
     void reset_population();
     void reset_prev();
-    void output_epidemics(int year, int day, MDAStrat strategy);    //output outbreak data
+    void output_epidemics(int year, int day, MDAEvent evt);          //output outbreak data
     int factorial(int n);
     int n_worms();
     void prob_worms(double agg_param_init, double worm_mean);

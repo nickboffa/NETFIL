@@ -23,7 +23,7 @@ void write_netfil(
     clock_t cpu_start,
     clock_t cpu_end,
     Region *rgn,
-    string mda_data
+    const CountryConfig& cfg
 ) {
     string basename = filename;
     if (basename.size() >= 4 && basename.substr(basename.size() - 4) == ".csv") {
@@ -46,12 +46,21 @@ void write_netfil(
 
     write_section(netfil, "Parameters of last simulation number");
     
-    // Outputs the scale of whichever make_<>.sh file was run most recently
-    ifstream scale_file(string(DATADIR) + "current_scale.txt");
-    string current_scale;
-    getline(scale_file, current_scale);
-    scale_file.close();
-    write_value(netfil, "Scale", current_scale);
+    ifstream state_file(string(DATADIR) + "current_state.txt");
+    string state_country, state_scale, state_theta2, line;
+    while (getline(state_file, line)) {
+        auto eq = line.find('=');
+        if (eq == string::npos) continue;
+        string key = line.substr(0, eq);
+        string val = line.substr(eq + 1);
+        if      (key == "country") state_country = val;
+        else if (key == "scale")   state_scale   = val;
+        else if (key == "theta2")  state_theta2  = val;
+    }
+    state_file.close();
+    write_value(netfil, "Country", state_country);
+    write_value(netfil, "Scale",   state_scale);
+    write_value(netfil, "Theta2",  state_theta2);
     write_value(netfil, "No. of groups", rgn->group_blocks);
 
     write_value(netfil, "Region name", rgn->rname);
@@ -65,12 +74,14 @@ void write_netfil(
     write_value(netfil, "Init poisson", rgn->init_poisson);
     
 
-    write_section(netfil, "MDA parameters");
-    int num_scenarios = count_mda_scenarios(mda_data);
-    for (int i = 1; i <= num_scenarios; i++) {
-        MDAStrat strategy = get_mda_strat(mda_data, i);
-        write_value(netfil, "Strategy number", i);
-        strategy.print_mda_strat(netfil);
+    write_section(netfil, "MDA rounds");
+    for (size_t i = 0; i < cfg.mda_rounds.size(); ++i) {
+        const MDARound& r = cfg.mda_rounds[i];
+        write_value(netfil, "Round",    i + 1);
+        write_value(netfil, "Year",     r.year);
+        write_value(netfil, "Drug",     r.drug);
+        write_value(netfil, "Coverage", r.coverage);
+        write_value(netfil, "Min age",  r.min_age);
         netfil << endl;
     }
 
@@ -82,9 +93,9 @@ void write_netfil(
     }
 
     write_section(netfil, "Year parameters");
-    write_value(netfil, "Starting year of simulation",  START_YEAR);
-    write_value(netfil, "Ending year of simulation", START_YEAR+SIM_YEARS);
-    write_value(netfil, "No. years simulated", SIM_YEARS);
+    write_value(netfil, "Starting year of simulation", cfg.init_year);
+    write_value(netfil, "Ending year of simulation",   cfg.end_year);
+    write_value(netfil, "No. years simulated",         cfg.sim_years());
     
     write_section(netfil, "Worm parameters");
     write_value(netfil, "Prop worms that are male", PROPORTION_MALE_WORM);
@@ -101,14 +112,23 @@ void write_netfil(
 
     write_section(netfil, "Disease parameters");
 
-    write_value(netfil, "Initial antigen prevalence mean", rgn->ant_0);
-    string init_prev_range = to_string(rgn->init_prev_min) + "—" + to_string(rgn->init_prev_max);
-    write_value(netfil, "Allowed initial antigen prevalence range", init_prev_range);
+    write_value(netfil, "Initial antigen prevalence mean", rgn->init_ant_prev);
+    string init_ant_prev_range = to_string(rgn->init_ant_prev_min) + "—" + to_string(rgn->init_ant_prev_max);
+    write_value(netfil, "Allowed initial ANT prevalence range", init_ant_prev_range);
 
-    string init_ratio_range = to_string(rgn->init_ratio_min) + "—" + to_string(rgn->init_ratio_max);
-    write_value(netfil, "Initial mf:ant ratio range(?)", init_ratio_range);
+    if (rgn->use_mf_prev_mode) {
+        string mf_prev_range = to_string(rgn->init_mf_prev_min) + "—" + to_string(rgn->init_mf_prev_max);
+        write_value(netfil, "Allowed initial MF prevalence range", mf_prev_range);
+    } else {
+        string ratio_range = to_string(rgn->init_mf_ant_ratio_min) + "—" + to_string(rgn->init_mf_ant_ratio_max);
+        write_value(netfil, "Allowed initial MF:ANT ratio range", ratio_range);
+    }
 
     write_value(netfil, "Probability you lose antigen each day", DAILY_PROB_LOSE_ANT);
+
+    double seed_success_pct = 100.0 * rgn->n_sims_run / rgn->total_seed_attempts;
+    write_value(netfil, "Seeding success rate (%)", seed_success_pct);
+    write_value(netfil, "Total seeding attempts", rgn->total_seed_attempts);
 
     write_section(netfil, "Miscellaneous parameters");
     write_value(netfil, "Sigma_group (group-level stdev)", rgn->sigma_group);

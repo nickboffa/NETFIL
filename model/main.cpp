@@ -13,43 +13,43 @@ int sim_i = 0;
 string prv_out_loc;
 
 int main(int argc, const char * argv[]){
-    if (argc < 2) { cerr << "Forget argument. Correct use: ./main <output_name>\n"; return 1; }
+    if (argc < 2) { cerr << "Usage: ./main <output_name> [n_sims]\n"; return 1; }
 
     time_t start_time = time(nullptr);
     clock_t cpu_start = clock();
     prv_out_loc = argv[1];
-   
+    int n_sims = (argc >= 3) ? atoi(argv[2]) : 1;
+
+    string config_path = string(DATADIR) + COUNTRY_CONFIG;
+    CountryConfig cfg = load_country_config(config_path);
+
     Region *rgn = new Region(region_id, region_name);
-    
-    string mda_data = string(DATADIR) + MDA_PARAMS; // Both are #define macros
+    rgn->start_year     = cfg.init_year;
+    rgn->sim_years      = cfg.sim_years();
+    rgn->init_ant_prev          = cfg.init_ant_prev;
+    rgn->init_ant_prev_min      = cfg.init_ant_prev_min;
+    rgn->init_ant_prev_max      = cfg.init_ant_prev_max;
+    rgn->use_mf_prev_mode       = cfg.use_mf_prev_mode;
+    rgn->init_mf_prev_min       = cfg.init_mf_prev_min;
+    rgn->init_mf_prev_max       = cfg.init_mf_prev_max;
+    rgn->init_mf_ant_ratio_min  = cfg.init_mf_ant_ratio_min;
+    rgn->init_mf_ant_ratio_max  = cfg.init_mf_ant_ratio_max;
+    rgn->achieved_coverage.assign(rgn->sim_years, 0.0);
+    rgn->number_treated.assign(rgn->sim_years, 0);
 
-    //Counting the number of different simulations we will perform
-    int mda_scenario_count = count_mda_scenarios(mda_data);
+    for (int i = 0; i < n_sims; ++i){
 
-    cout << "made it to here" << endl;
-    //now looping over scenarios
-    for (int scenario_count = 0; scenario_count < mda_scenario_count; ++scenario_count){
+        rgn->reset_population();
 
-        //generating mda strategy!
-        MDAStrat strategy = get_mda_strat(mda_data, scenario_count + 1);
-
-        //Now looping over simulations
-         for (int i = 0; i < strategy.n_sims; ++i){
-            
-            //resetting the populations from previous simulation
-            rgn->reset_population();
-           
-            //run run the simulation year by year
-            for(int year = 0; year < SIM_YEARS; ++year){
-                
-                rgn->sim(year, strategy);
-              
-            }
-
-            sim_i += 1;
+        for (int year = 0; year < rgn->sim_years; ++year){
+            cout << "Sim " << i+1 << "/" << n_sims << "  year " << cfg.init_year + year << endl;
+            MDAEvent evt = make_mda_event(cfg, cfg.init_year + year);
+            rgn->sim(year, evt);
         }
 
+        sim_i += 1;
     }
+    rgn->n_sims_run = n_sims;
 
     time_t end_time = time(nullptr);
     clock_t cpu_end = clock();
@@ -63,9 +63,9 @@ int main(int argc, const char * argv[]){
             cpu_start,
             cpu_end,
             rgn,
-            mda_data
+            cfg
         );
     #endif
 
     return 0;
-} 
+}

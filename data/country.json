@@ -1,0 +1,25 @@
+{
+  "init_year": 1998,
+  "end_year": 2024,
+  "seeding": {
+    "init_ant_prev": 0.0442,
+    "init_ant_prev_min": 0.0432,
+    "init_ant_prev_max": 0.0452,
+    "init_mf_prev_min": 0.0107,
+    "init_mf_prev_max": 0.0127
+  },
+  "mda_rounds": [
+    {"year": 1999, "drug": "DA", "coverage": 0.905, "min_age": 2},
+    {"year": 2000, "drug": "DA", "coverage": 0.568, "min_age": 2},
+    {"year": 2001, "drug": "DA", "coverage": 0.684, "min_age": 2},
+    {"year": 2002, "drug": "DA", "coverage": 0.612, "min_age": 2},
+    {"year": 2003, "drug": "DA", "coverage": 0.796, "min_age": 2},
+    {"year": 2006, "drug": "DA", "coverage": 0.841, "min_age": 2},
+    {"year": 2008, "drug": "DA", "coverage": 0.945, "min_age": 2},
+    {"year": 2011, "drug": "DA", "coverage": 0.896, "min_age": 2},
+    {"year": 2015, "drug": "DA", "coverage": 0.90,  "min_age": 2},
+    {"year": 2017, "drug": "DA", "coverage": 0.90,  "min_age": 2},
+    {"year": 2018, "month": 8, "drug": "IDA", "coverage": 0.90, "min_age": 2},
+    {"year": 2023, "month": 9, "drug": "IDA", "coverage": 0.90, "min_age": 2}
+  ]
+}

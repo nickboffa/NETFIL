@@ -8,5 +8,5 @@ void write_netfil(
     clock_t cpu_start,
     clock_t cpu_end,
     Region *rgn,
-    string mda_data
+    const CountryConfig& cfg
 );

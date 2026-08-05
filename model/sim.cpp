@@ -5,23 +5,35 @@
 
 extern string prv_out_loc;
 
-void Region::sim(int year, MDAStrat strat){
+void Region::sim(int year, MDAEvent evt){
     
     bool debug_fit = false; //prints out yearly data
 
 
     //if the first year, must seed LF in the population
     if(year == 0){
-        init_prev = 0;
-        init_ratio  = 0;
-        // Keep seeding until prev and ratio within bounds
-        while(((init_prev < init_prev_min) || (init_prev > init_prev_max)) || ((init_ratio < init_ratio_min) || (init_ratio > init_ratio_max))){
+        init_ant_prev_obs = 0;
+        init_mf_prev_obs  = 0;
+        init_ratio_obs    = 0;
+        int attempts = 0;
+        cout << "Seeding..." << endl;
+        // Keep seeding until prevalence/ratio within bounds
+        while ((init_ant_prev_obs < init_ant_prev_min || init_ant_prev_obs > init_ant_prev_max) ||
+               (use_mf_prev_mode
+                   ? (init_mf_prev_obs  < init_mf_prev_min       || init_mf_prev_obs  > init_mf_prev_max)
+                   : (init_ratio_obs    < init_mf_ant_ratio_min   || init_ratio_obs    > init_mf_ant_ratio_max))) {
+            ++attempts;
+            if (attempts % 10 == 0)
+                cout << "  attempt " << attempts << " (ANT " << init_ant_prev_obs*100 << "%, MF " << init_mf_prev_obs*100 << "%)" << endl;
             seed_lf();
         }
-        
-        cout << "Init prev: " << init_prev << "%" << endl;
-        cout << "MF to Ant: " << init_ratio << endl;
-        
+        total_seed_attempts += attempts;
+
+        cout << "Init ANT prev: " << init_ant_prev_obs * 100 << "%" << endl;
+        if (use_mf_prev_mode)
+            cout << "Init MF prev: "  << init_mf_prev_obs * 100 << "%" << endl;
+        else
+            cout << "MF:ANT ratio: "  << init_ratio_obs << endl;
     }
 
     if (prv_out_loc == "print"){
@@ -53,12 +65,12 @@ void Region::sim(int year, MDAStrat strat){
                 handle_birth(year, day, population_dt); //births
             }
 
-            if((strat.is_mda_year(year+START_YEAR)) && (day == 28)){
-                implement_mda(year,strat);
-            } 
-        
+            if (evt.apply && (day == evt.day)){
+                implement_mda(year, evt);
+            }
+
             if ((day % 91 == 0) && (day != 364)){
-                output_epidemics(year, day, strat); 
+                output_epidemics(year, day, evt);
             }
                 
         }
@@ -93,7 +105,7 @@ void Region::seed_lf(){
     vector<double> bite_scales {};
     file.close();
     for (int i = 0; i < init_prev_table.size(); ++i) { //now given the prev we are finding the init aggregation from values we have calculated previously (finding the roots here was too intensive so I found them previously in mathematica and included them here)
-        double difference = abs(init_prev_table[i] - ant_0);
+        double difference = abs(init_prev_table[i] - init_ant_prev);
         if (difference < min_difference) {
             min_difference = difference;
             closest_index = i;
@@ -102,7 +114,7 @@ void Region::seed_lf(){
 
     ki = init_k_table[closest_index];
     in_agg = 1.0 / ki;
-    mean_load = ki*(1-pow((1-ant_0),in_agg))/pow((1-ant_0),in_agg);
+    mean_load = ki*(1-pow((1-init_ant_prev),in_agg))/pow((1-init_ant_prev),in_agg);
     prob_worms(ki, mean_load); 
 
     //iterating over groups
@@ -118,7 +130,7 @@ void Region::seed_lf(){
             double group_log_odds = group_effect + beta_0;
             group_prev = 1/(1+exp(-group_log_odds));
         } else {
-            group_prev = ant_0; //for single groups we already know the prev!
+            group_prev = init_ant_prev; //for single groups we already know the prev!
         }
 
         for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){
@@ -201,20 +213,20 @@ void Region::seed_lf(){
             
         }
     }
-    
-    
-    init_ratio = (double)inf_indiv.size() / (double)ant_pos;
-    init_prev = 100 * (double)ant_pos / (double)rpop;
-    
+
+    init_ratio_obs    = (double)inf_indiv.size() / (double)ant_pos;
+    init_mf_prev_obs  = (double)inf_indiv.size() / (double)rpop;
+    init_ant_prev_obs = (double)ant_pos           / (double)rpop;
+
     int init_inf_shuffle = rpop*0.025;
     int init_other_shuffle = rpop*0.075;
 
     if((init_inf_shuffle > 0) || (init_other_shuffle > 0)){
 
         sort(bite_scales.begin(),bite_scales.end(), greater<double>());
-        
+
         if(init_inf_shuffle <  inf_indiv.size()){
-            init_inf_shuffle = inf_indiv.size(); 
+            init_inf_shuffle = inf_indiv.size();
             cout << "Warning trying to shuffle less values than there are infectious persons" << endl;
             cout << "Setting to shuffle to least possible" <<endl;
         }
@@ -226,20 +238,20 @@ void Region::seed_lf(){
             Agent *agt = j->second;
 
             agt->bite_scale =  bite_scales.front();
-            bite_scales.erase(bite_scales.begin());        
+            bite_scales.erase(bite_scales.begin());
         }
 
         int n_infected = uninf_indiv.size() + pre_indiv.size();
 
         if(init_other_shuffle <  n_infected){
-            init_inf_shuffle = n_infected; 
+            init_inf_shuffle = n_infected;
             cout << "Warning trying to shuffle less values than there are other infected persons" << endl;
             cout << "Setting to shuffle to least possible" <<endl;
         }
 
         //shuffling!
         partial_shuffle(bite_scales, 0,init_other_shuffle); //shuffle the top quater to randomise the most bitten scales
-        partial_shuffle(bite_scales,bite_scales.size()-(rpop-n_infected), bite_scales.size());
+        partial_shuffle(bite_scales, n_infected, bite_scales.size());
 
         //now reassigning to agents! first the people with no worms 
         for(map<int, Agent*>::iterator j = no_worms_indiv.begin(); j != no_worms_indiv.end(); ++j){

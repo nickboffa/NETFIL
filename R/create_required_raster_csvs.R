@@ -138,19 +138,29 @@ lapply(seq_along(rasters), function(i) {
 })
 
 
+write_dist_binary <- function(dist_df, path) {
+  mat  <- as.matrix(dist_df[, -1])      # drop group-ID column; n×n numeric matrix
+  vals <- mat[lower.tri(mat)]            # lower-tri col-major = upper-tri row-major (symmetric)
+  con  <- file(path, "wb")
+  writeBin(as.double(vals), con)
+  close(con)
+}
+
 save_results <- function(res, country = c("WSM", "ASM"), name) {
   base <- file.path("data", country, "Scales", name)
   write_csv(res$data, file.path(base, "groups.csv"))
-  write_csv(res$euc, file.path(base, "euc_dist.csv"))
+  write_csv(res$euc,  file.path(base, "euc_dist.csv"))
   write_csv(res$road, file.path(base, "road_dist.csv"))
+  write_dist_binary(res$euc,  file.path(base, "euc_dist.bin"))
+  write_dist_binary(res$road, file.path(base, "road_dist.bin"))
 }
 
 
+save_results(results_orig[[2]], "ASM", "Raster220")
 
+save_results(results_orig[[5]], "ASM", "Raster550")
 
-save_results(results_orig[[2]], "Raster220")
-
-save_results(results_orig[[5]], "Raster550")
+save_results(results_orig[[6]], "ASM", "Raster660")
 
 save_results(res_wsm, "WSM", "Raster550")
 
@@ -250,25 +260,15 @@ for (i in 2:5) {
   s_rasters[[i]] <- aggregate(s_rasters[[1]], fact=i, fun="sum")
 }
 
-s_results <- lapply(seq_along(s_rasters[2:9]), function(i) {
-  data <- create_raster_data(s_rasters[[i+1]], min_pop = 90, pop_target = 193023)
-  list(
-    data = data,
-    euc  = create_dist_csv(data, "euclidean"),
-    road = create_dist_csv(data, "manhattan")
-  )
-})
-
-for (i in seq_along(s_rasters)) {
-  cat(i+1, nrow(s_results[[i]]$data), sum(s_results[[i]]$data$Population), "\n")
-}
-
-data_wsm <- create_raster_data(rasters[[5]], min_pop = 30, pop_target = 178905)
-
-r_wsm <- groups_to_raster(data_wsm, rasters[[5]])
 
 
-subst(rasters[[5]], 0, NA) |> plot()
+
+data_wsm <- create_raster_data(s_rasters[[5]], min_pop = 10, pop_target = 178905)
+
+r_wsm <- groups_to_raster(data_wsm, s_rasters[[5]])
+
+
+subst(s_rasters[[5]], 0, NA) |> plot()
 plot(r_wsm)
 
 res_wsm <- list(
@@ -276,4 +276,6 @@ res_wsm <- list(
   euc  = create_dist_csv(data_wsm, "euclidean"),
   road = create_dist_csv(data_wsm, "manhattan")
 )
+
+save_results(res_wsm, "WSM", "Raster550")
 

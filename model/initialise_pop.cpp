@@ -12,6 +12,7 @@ Region::Region(int rid, string rname){
     this->rname = rname;
 
     //Trackers for IDs
+    rpop = 0;
     next_aid = 1;
     next_gid = 1;
     group_blocks = 0;
@@ -291,102 +292,58 @@ void Region::read_parameters(){
     }
     in.close();
 
-    // Reading road_dst & euclid_dst for multigroup sims
-    // Only if hasn't been loaded yet
-    if (road_dst == nullptr && group_blocks > 1) {
+    // Load the distance array selected by DISTANCE_TYPE ('r' = road, 'e' = euclidean).
+    // Only one array is ever used; the other stays null.
+    double*& active_dst     = (DISTANCE_TYPE == 'r') ? road_dst   : euclid_dst;
+    const char* bin_file    = (DISTANCE_TYPE == 'r') ? CAR_DISTANCE_BIN  : CROW_DISTANCE_BIN;
+    const char* csv_file    = (DISTANCE_TYPE == 'r') ? CAR_DISTANCE      : CROW_DISTANCE;
+
+    if (active_dst == nullptr && group_blocks > 1) {
         int len = group_blocks*(group_blocks-1)/2;
-        cout << "BUILDING ROADS" <<endl;
-        road_dst = new double[len];     memset(road_dst, 0, sizeof(double)*len);
-        euclid_dst = new double[len];   memset(euclid_dst, 0, sizeof(double)*len);
-        
-        file = DATADIR;     file = file + CAR_DISTANCE;
-        in.open(file.c_str());
-        
-        getline(in, line);
-        vector<string> grp_vec;
-        {
-            char *str = new char[line.size()+1];
-            std::strcpy(str, line.c_str());
-            
-            char *p = std::strtok(str, ",");
-            while(p != NULL){
-                grp_vec.push_back(p);
-                p = std::strtok(NULL, ",");
-            }
-            delete []str;
-            
-            while(getline(in, line)){
-                str = new char[line.size()+1];
+        active_dst = new double[len];   memset(active_dst, 0, sizeof(double)*len);
+
+        string bin_path = string(DATADIR) + bin_file;
+        FILE* bf = fopen(bin_path.c_str(), "rb");
+
+        if (bf) {
+            cout << "BUILDING ROADS" << endl;
+            fread(active_dst, sizeof(double), len, bf);
+            fclose(bf);
+            cout << "Roads loaded (" << len << " pairs)" << endl;
+        } else {
+            cout << "BUILDING ROADS (binary not found, reading CSV — run R to generate .bin)" << endl;
+
+            file = DATADIR;  file += csv_file;
+            in.open(file.c_str());
+            getline(in, line);
+            vector<string> grp_vec;
+            {
+                char *str = new char[line.size()+1];
                 std::strcpy(str, line.c_str());
-                
-                p = std::strtok(str, ",");
-                string src = p;
-                int src_id = group_names[src];
-                
-                int index = 0;
-                p = std::strtok(NULL, ",");
-                while(p != NULL){
-                    string tag = grp_vec[index++];
-                    int tag_id = group_names[tag];
-                    
-                    if(tag_id > src_id){
-                        double dd = atof(p);
-                        
-                        int ii = (src_id-1)*(group_blocks*2-src_id)/2 + tag_id-src_id - 1;
-                        road_dst[ii] = dd;
-                    }
-                    
-                    p = std::strtok(NULL, ",");
-                }
+                char *p = std::strtok(str, ",");
+                while (p != NULL) { grp_vec.push_back(p); p = std::strtok(NULL, ","); }
                 delete []str;
-            }
-        }
-        grp_vec.clear();
-        grp_vec.shrink_to_fit();
-        in.close();
-        
-        file = DATADIR;     file = file + CROW_DISTANCE;
-        in.open(file.c_str());
-        
-        getline(in, line);
-        {
-            char *str = new char[line.size()+1];
-            std::strcpy(str, line.c_str());
-            
-            char *p = std::strtok(str, ",");
-            while(p != NULL){
-                grp_vec.push_back(p);
-                p = std::strtok(NULL, ",");
-            }
-            delete []str;
-            
-            while(getline(in, line)){
-                str = new char[line.size()+1];
-                std::strcpy(str, line.c_str());
-                
-                p = std::strtok(str, ",");
-                string src = p;
-                int src_id = group_names[src];
-                
-                int index = 0;
-                p = std::strtok(NULL, ",");
-                while(p != NULL){
-                    string tag = grp_vec[index++];
-                    int tag_id = group_names[tag];
-                    
-                    if(tag_id > src_id){
-                        double dd = atof(p);
-                        
-                        int ii = (src_id-1)*(group_blocks*2-src_id)/2 + tag_id-src_id - 1;
-                        euclid_dst[ii] = dd;
-                    }
-                    
+
+                while (getline(in, line)) {
+                    str = new char[line.size()+1];
+                    std::strcpy(str, line.c_str());
+                    p = std::strtok(str, ",");
+                    int src_id = group_names[string(p)];
+                    int index = 0;
                     p = std::strtok(NULL, ",");
+                    while (p != NULL) {
+                        int tag_id = group_names[grp_vec[index++]];
+                        if (tag_id > src_id) {
+                            int ii = (src_id-1)*(group_blocks*2-src_id)/2 + tag_id-src_id - 1;
+                            active_dst[ii] = atof(p);
+                        }
+                        p = std::strtok(NULL, ",");
+                    }
+                    delete []str;
                 }
-                delete []str;
             }
+            in.close();
         }
-        in.close();
     }
     
     file = DATADIR; file = file + TRAN_PARAM;
@@ -445,20 +402,7 @@ void Region::read_parameters(){
     delete []sp_str;
     in.close();
 
-    file = DATADIR; file = file + COUNTRY_PARAMS;
-    in.open(file.c_str());
-    getline(in, line);  // skip header
-    getline(in, line);
-    char *cp_str = new char[line.size()+1];
-    strcpy(cp_str, line.c_str());
-    char *cp = NULL;
-    cp = strtok(cp_str, ",");  ant_0         = atof(cp);
-    cp = strtok(NULL, ",");    init_prev_min  = atof(cp);
-    cp = strtok(NULL, ",");    init_prev_max  = atof(cp);
-    cp = strtok(NULL, ",");    init_ratio_min = atof(cp);
-    cp = strtok(NULL, ",");    init_ratio_max = atof(cp);
-    delete []cp_str;
-    in.close();
+    // ant_0, init_prev_min/max, init_ratio_min/max are set from country.json in main()
 }
 
 void Region::reset_population(){

@@ -53,9 +53,10 @@ for i in "${!SCALES[@]}"; do
         echo "=== cp=${CP} $scale rep $rep ==="
 
         ./clean_inputs.sh
-        cp ../data/Scales/$scale/* ../data/
-        cp ../data/Fitted/$fitted/Theta_$T2/tran_params.csv ../data/
-        echo "$scale" > ../data/current_scale.txt
+        cp ../data/ASM/Scales/$scale/* ../data/
+        cp ../data/ASM/Fitted/$fitted/Theta_$T2/tran_params.csv ../data/
+        cp ../data/ASM/country.json ../data/
+        { echo "country=ASM"; echo "scale=$scale"; echo "theta2=$T2"; } > ../data/current_state.txt
 
         start=$(python3 -c "import time; print(time.time())")
         ./main "benchmark_cp${CP}_${scale}_rep${rep}.csv"

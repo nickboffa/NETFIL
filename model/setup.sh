@@ -23,7 +23,7 @@ echo "Cleaning and moving files"
 
 cp ../data/$COUNTRY/Scales/$SCALE/* ../data/
 cp ../data/$COUNTRY/Fitted/$SCALE/Theta_$T2/tran_params.csv ../data/
-cp ../data/$COUNTRY/mda_params.csv ../data/
+cp ../data/$COUNTRY/country.json ../data/
+cp ../data/$COUNTRY/initaggs.csv ../data/
 
-echo "$SCALE" > ../data/current_scale.txt
-echo "$COUNTRY" > ../data/current_country.txt
+{ echo "country=$COUNTRY"; echo "scale=$SCALE"; echo "theta2=$T2"; } > ../data/current_state.txt

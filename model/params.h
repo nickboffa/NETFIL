@@ -30,15 +30,6 @@ constexpr int WIDTH_AGE_GROUPS = 5; // 0-4, 5-9, ... 75-79
 // ABC_FITTING must remain a #define — it is used in a preprocessor #if directive
 #define ABC_FITTING true
 
-#if ABC_FITTING
-constexpr int SIM_YEARS = 7;
-#else
-constexpr int SIM_YEARS = 21;
-#endif
-
-
-constexpr int START_YEAR = 2010; // Model starting year
-
 constexpr double COMMUTING_PROP      = 0.5;          //proportion of group that commute daily (over 5 years old)
 constexpr int    RECALC_YEARS        = 100;           //how often we want to recalc commuters
 constexpr char   DISTANCE_TYPE       = 'r';           // r for road distance, e for euclidean
@@ -69,9 +60,11 @@ void partial_shuffle(vector<double>& vec, int start, int end);
 
 #define CROW_DISTANCE               "euc_dist.csv"
 #define CAR_DISTANCE                "road_dist.csv"
+#define CROW_DISTANCE_BIN           "euc_dist.bin"
+#define CAR_DISTANCE_BIN            "road_dist.bin"
 
-#define MDA_PARAMS                  "mda_params.csv"
+#define COUNTRY_CONFIG              "country.json"
 #define INIT_PARAMS                 "init_params.csv"
+
 #define CLUSTERING_PARAMS           "clustering_params.csv"
-#define COUNTRY_PARAMS              "country_params.csv"
 #endif /* headers_h */

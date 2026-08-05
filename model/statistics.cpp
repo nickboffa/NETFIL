@@ -7,7 +7,7 @@
 extern string prv_out_loc;
 extern int sim_i;
 
-void Region::output_epidemics(int year, int day, MDAStrat strategy){
+void Region::output_epidemics(int year, int day, MDAEvent evt){
     
     //total pop
     double pop_total = 0;
@@ -62,7 +62,7 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
     if (day == 0){
     cout << endl;
     
-    cout << year+START_YEAR << ": " << "prepatent = " << pre_indiv.size() << " uninfectious = " << uninf_indiv.size() << " infectious = " << inf_indiv.size() << " antigen positive = " << ant_total << endl;
+    cout << "Start of " << year+start_year << ": " << "prepatent = " << pre_indiv.size() << " uninfectious = " << uninf_indiv.size() << " infectious = " << inf_indiv.size() << " antigen positive = " << ant_total << endl;
     cout << "overall mf prevalence = " << fixed << setprecision(2) << inf_indiv.size()/(double)rpop*100 << "%" << endl;
     cout<< "overall ant prevalence = " << fixed << setprecision(2) << ant_total/(double)rpop*100 << "%" << endl;
     cout<< "overall ratio prevalence = " << fixed << setprecision(2) << ant_total/mf_total << endl;
@@ -117,9 +117,9 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
     //write the prevalence for whole populations, by gender, by age group and for each village
     out.open(prv_dat.c_str(), ios::app);
     
-    out << strategy.name << ",";
+    out << evt.drug_name << ",";
     out << sim_i << ",";
-    out << year + START_YEAR << ",";
+    out << year + start_year << ",";
     out << day << ",";
     out << agg_param << ",";
     out << theta1 << ",";
@@ -127,17 +127,17 @@ void Region::output_epidemics(int year, int day, MDAStrat strategy){
     out << worktonot << ",";
     out << immature_and_ant  << ",";
     out << immature_to_antigen << ",";
-    out << strategy.coverage << ",";
-    out << strategy.drug.kill_prob << ",";
-    out << strategy.drug.full_ster_prob << ",";
-    out << strategy.drug.part_ster_prob << ",";
-    out << strategy.drug.ster_dur << ",";
-    out << strategy.drug.part_ster_magnitude << ",";
-    out << strategy.mda_start_year << ",";
-    out << strategy.n_mda_rounds << ",";
-    out << strategy.years_between_rounds << ",";
+    out << evt.coverage << ",";
+    out << evt.drug_params.kill_prob << ",";
+    out << evt.drug_params.full_ster_prob << ",";
+    out << evt.drug_params.part_ster_prob << ",";
+    out << evt.drug_params.ster_dur << ",";
+    out << evt.drug_params.part_ster_magnitude << ",";
+    out << 0 << ",";
+    out << 0 << ",";
+    out << 0 << ",";
     out << achieved_coverage[year] << ",";
-    out << SIM_YEARS << ",";
+    out << sim_years << ",";
     out << pop_total << ",";
     out << mf_total << ",";
     out << ant_total << ",";

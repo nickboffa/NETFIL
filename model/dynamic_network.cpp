@@ -3,22 +3,22 @@
 #include <cstdlib>
 #include <algorithm>
 
-void Region::implement_mda(int year, MDAStrat strat){
+void Region::implement_mda(int year, MDAEvent evt){
     int n_pop = 0;
     int n_treated = 0;
     int n_under_min = 0;
 
     for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //for every group
-        
+
         Group *grp = j->second;
-        
+
         n_pop += grp->group_pop.size();
-        
-        for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //for every person 
-            
+
+        for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //for every person
+
             double age = k->second->age/365.0; // agent's age
 
-            if (age<strat.min_age) ++n_under_min; 
+            if (age < evt.min_age) ++n_under_min;
 
         }
     }
@@ -26,16 +26,16 @@ void Region::implement_mda(int year, MDAStrat strat){
     double target_prop = 1 - n_under_min /(double)n_pop;
 
     for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //for every group
-        
+
         Group *grp = j->second;
-        
-        for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //for all people 
-            
+
+        for(map<int, Agent*>::iterator k = grp->group_pop.begin(); k != grp->group_pop.end(); ++k){ //for all people
+
             double age = k->second->age/365.0; // agent's age
-            if(age >= strat.min_age){
-                if(random_real() <= strat.coverage/(double)target_prop){
+            if(age >= evt.min_age){
+                if(random_real() <= evt.coverage/(double)target_prop){
                     ++n_treated;
-                    k->second->mda(strat.drug);
+                    k->second->mda(evt.drug_params);
                 }
             }
         }
@@ -49,10 +49,12 @@ void Region::handle_commute(int year){
     
     //firstly need to clear previous storage
    
-    if (year % RECALC_YEARS == 0){    
-        
+    if (year % RECALC_YEARS == 0){
+
         if (groups.size() > 1){
+            cout << "Building commute network (year " << year + start_year << ")..." << endl;
             radt_model(DISTANCE_TYPE); //generating commuting network
+            cout << "Commute network built" << endl;
             for(map<int, Group*>::iterator j = groups.begin(); j != groups.end(); ++j){ //now using the network
                 Group *grp = j->second;
                 int no_commute_id = grp->gid;
