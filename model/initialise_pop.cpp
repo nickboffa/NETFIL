@@ -10,6 +10,7 @@ using namespace std;
 Region::Region(int rid, string rname){
     this->rid = rid; //region id
     this->rname = rname;
+    load_config();
 
     //Trackers for IDs
     rpop = 0;
@@ -20,7 +21,7 @@ Region::Region(int rid, string rname){
     //Distances
     euclid_dst = NULL;
     road_dst = NULL;
-    
+
     //Clearing counts region level infection status
     pre_indiv.clear();
     uninf_indiv.clear();
@@ -186,23 +187,6 @@ void Region::read_groups(){
     
     group_blocks = (int)group_names.size();
 
-    //reading in age distribution
-    file = DATADIR;    file = file + AGE_BRACKETS;
-    in.open(file.c_str());
-    
-    while(getline(in, line)){
-        if(line[0] == '*') continue;
-        if(line.length() <= 1) continue;  //empty line with carriage return
-        break;
-    }
-    int ii = 0;
-    
-    while(getline(in, line)){
-        age_dist[ii] = atof(line.c_str());
-        ii++;
-    }
-    in.close();
-    
     //calculate cpop
     for(map<int, int>::iterator j = group_pops.begin(); j != group_pops.end(); ++j){
         int gid = j->first;
@@ -228,69 +212,11 @@ void Region::bld_region_population(){
 }
 
 void Region::read_parameters(){
-    
+
     ifstream in;
     string line, file;
 
-    //reading in birth rate data 
-    file = DATADIR;     file = file + BIRTH_FILE;
-    in.open(file.c_str());
-
-    //skip the description
-    while(getline(in, line)){
-        if(line[0] == '*') continue;
-        if(line.length() <= 1) continue;  //empty line with carriage return
-        break;
-    }
-
-    int ii = 0;
-
-    while(getline(in, line)){
-        birth_rate[ii] = atof(line.c_str());
-        ii++;
-    }
-
-    in.close();
-
-
-     //reading in mortality rate data 
-    file = DATADIR;     file = file + MORTALITY_FILE;
-    in.open(file.c_str());
-
-    //skip the description
-    while(getline(in, line)){
-        if(line[0] == '*') continue;
-        if(line.length() <= 1) continue;  //empty line with carriage return
-        break;
-    }
-
-    ii = 0;
-    while(getline(in, line)){
-        mortality_rate[ii] = atof(line.c_str());
-        ii++;
-    }
-    in.close();
-
-    //read exposure by age
-    file = DATADIR;    file = file + EXPOSURE_AGE;
-    in.open(file.c_str());
-    if(!in){
-        cout << "open " << file << " failed" << endl;
-        exit(1);
-    }
-    getline(in, line);
-    while(getline(in,line)){
-        char *str = new char[line.size()+1];
-        std::strcpy(str, line.c_str());
-        char *p = NULL;
-        p = std::strtok(str, ",");      int age = atoi(p);
-        p = std::strtok(NULL, ",");
-        p = std::strtok(NULL, ",");     double expo = atof(p);
-        
-        exposure_by_age[age] = expo;
-        delete []str;
-    }
-    in.close();
+    // Demographic/biological parameters are accessed via cfg.field (set in constructor).
 
     // Load the distance array selected by DISTANCE_TYPE ('r' = road, 'e' = euclidean).
     // Only one array is ever used; the other stays null.
@@ -368,27 +294,6 @@ void Region::read_parameters(){
     agg_param = k;
     agg_scale = 1 / k;
     worktonot  = w2n;
-
-    //read in init params
-    file = DATADIR; file = file + INIT_PARAMS;
-    in.open(file.c_str());
-    getline(in,line);
-    getline(in,line);
-    char *ip_str = new char[line.size()+1];
-    strcpy(ip_str, line.c_str());
-    char *ip = NULL;
-
-    ip = strtok(ip_str, ",");     double init_ls = atof(ip);
-    ip = strtok(NULL,   ",");     double init_mi = atof(ip);
-    ip = strtok(NULL,   ",");     double init_itoa = atof(ip);
-    ip = strtok(NULL,   ",");     double init_ianda = atof(ip);
-    delete []ip_str;
-    in.close();
-    
-    init_beta_b = init_ls;
-    init_poisson = init_mi;
-    immature_to_antigen = init_itoa;
-    immature_and_ant = init_ianda;
 
     file = DATADIR; file = file + CLUSTERING_PARAMS;
     in.open(file.c_str());
@@ -520,7 +425,7 @@ Group::~Group(){
 void Group::bld_group_pop(){
 
     int group_population = rgn->group_pops[gid];
-    double* age_dist = rgn->age_dist;
+    const auto& age_dist = rgn->age_dist;
     
     while(group_population > 0 ){
         double age_p = random_real();

@@ -28,8 +28,11 @@ Agent::~Agent(){
 
 }
 
-void Agent::sim_bites(double c, double worktonot, bool single){
-    
+void Agent::sim_bites(double c, double worktonot, bool single,
+                      double imm_mean, double imm_std,
+                      double mat_mean, double mat_std,
+                      double prop_male_worm){
+
     int total_bites;
 
     if (single) {
@@ -37,19 +40,18 @@ void Agent::sim_bites(double c, double worktonot, bool single){
     } else {
         int day_bites;
         int night_bites;
-        
 
         day_bites   = poisson(c * dgp->day_strength * bite_scale * worktonot);
         night_bites = poisson(c * ngp->night_strength * bite_scale * (1.0 - worktonot));
 
         total_bites = day_bites + night_bites;
     }
-    
-    for (int i = 0; i < total_bites; ++i) { //looping through infective bites and assigning worms
-        int immature_period = normal(IMMATURE_PERIOD_MEAN, IMMATURE_PERIOD_MEAN_STD); //immature period of worm
-        int mature_period = normal(MATURE_PERIOD_MEAN, MATURE_PERIOD_MEAN_STD); //mature period of worm
 
-        if (random_real() < PROPORTION_MALE_WORM) { // worm is male
+    for (int i = 0; i < total_bites; ++i) { //looping through infective bites and assigning worms
+        int immature_period = normal(imm_mean, imm_std); //immature period of worm
+        int mature_period = normal(mat_mean, mat_std); //mature period of worm
+
+        if (random_real() < prop_male_worm) { // worm is male
             wvec.push_back(new Worm('P', immature_period, mature_period, 'M'));
         } else { // worm is female
             wvec.push_back(new Worm('P', immature_period, mature_period, 'F'));

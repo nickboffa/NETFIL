@@ -123,7 +123,7 @@ void Region::calc_risk(){
             Agent *agt =k->second;
             int age = int(agt->age / 365);
             double c = 1.0;
-            if(age <= 15) c = exposure_by_age[age];
+            if(age <= 15) c = exposure_kernel[age];
             nb += agt->bite_scale*c;    
         }
         if(!single){
@@ -131,7 +131,7 @@ void Region::calc_risk(){
                 Agent *agt =k->second;
                 int age = int(agt->age / 365);
                 double c = 1.0;
-                if (age <= 15) c = exposure_by_age[age];
+                if (age <= 15) c = exposure_kernel[age];
                 db += agt->bite_scale*c;    
             }
             grp->day_bites = db;
@@ -151,7 +151,7 @@ void Region::calc_risk(){
         int age = int(agt->age / 365);
         double c = 1.0;
 
-        if(age <= 15) c = exposure_by_age[age];
+        if(age <= 15) c = exposure_kernel[age];
         
         ngrp->night_strength += (c*agt->bite_scale*mf_functional_form(form, j->second->worm_strength)) / ngrp->night_bites;
         
@@ -174,9 +174,12 @@ void Region::calc_risk(){
             char previous_status = agt->status;
             double c = 1; //
             int age = int(agt->age / 365);
-            if (age <= 15) c = exposure_by_age[age];
+            if (age <= 15) c = exposure_kernel[age];
             
-            agt->sim_bites(c, worktonot, single); // simulating the bites!
+            agt->sim_bites(c, worktonot, single,
+                           immature_period_mean, immature_period_mean_std,
+                           mature_period_mean, mature_period_mean_std,
+                           proportion_male_worm); // simulating the bites!
 
             if(agt->status == 'E' && previous_status == 'S'){
                 pre_indiv.insert(pair<int, Agent*>(agt->aid, agt));
@@ -274,7 +277,7 @@ void Region::renew_pop(int year, int day, int dt){
             int index = int(int(agt->age/365)/5);
             if(index > 15) index = 15; //all 75+ the same
 
-            double prob = 1 - exp(-mortality_rate[index]*dt);
+            double prob = 1 - exp(-mortality_rates[index]*dt);
             if(random_real() < prob) deaths.push_back(agt); //seeing if agent dies depending on age
             else agt->age += dt; //increase everyones age
         }
@@ -320,7 +323,7 @@ void Region::handle_birth(int year, int day, int dt){ //deal with births
             Agent *agt = k->second;
             if(agt->age >= 15*365 && agt->age < 50*365){
                 int index = int((int(agt->age/365))/5);
-                double prob = 1 - exp(-birth_rate[index]*dt);
+                double prob = 1 - exp(-birth_rates[index]*dt);
                 
                 if(random_real() < prob) ++total_births; 
             }

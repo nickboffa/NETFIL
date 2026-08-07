@@ -63,7 +63,10 @@ public:
 
     ~Agent();
 
-    void sim_bites(double c, double w2n, bool single);
+    void sim_bites(double c, double w2n, bool single,
+                   double imm_mean, double imm_std,
+                   double mat_mean, double mat_std,
+                   double prop_male_worm);
     void update(int day, int year, int dt);
     void mda(Drugs drug);
 

@@ -7,7 +7,11 @@ data/.ipynb_checkpoints/*
 data/euc_dist.csv
 data/groups.csv
 data/road_dist.csv
-data/TranParams.csv
+data/tran_params.csv
+data/clustering_params.csv
+data/country.json
+data/current_state.txt
+data/initaggs.csv
 model/main
 model/main.dSYM/
 comnbine_group_csvs.R

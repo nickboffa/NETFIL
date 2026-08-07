@@ -49,7 +49,7 @@ void Region::output_epidemics(int year, int day, MDAEvent evt){
                 ++mated_adult[bucket];
             }
             //all people infected with any number of mature worms or who still have lingering antibodies are counted
-            if(agt->status == 'I' || agt->status == 'U'|| random_real() < pow(DAILY_PROB_LOSE_ANT, (year*365 +day) - agt->last_mworm_time) ){ 
+            if(agt->status == 'I' || agt->status == 'U'|| random_real() < pow(daily_prob_lose_ant, (year*365 +day) - agt->last_mworm_time) ){
                 
                 ++antigen_pos_groups[j->first - 1];
                 ++ant_total;

@@ -21,7 +21,14 @@ done
 echo "Cleaning and moving files"
 ./clean_inputs.sh
 
-cp ../data/$COUNTRY/Scales/$SCALE/* ../data/
+cp ../data/$COUNTRY/Scales/$SCALE/groups.csv ../data/
+# Copy road distance files: .bin preferred (faster), .csv as fallback.
+# If DISTANCE_TYPE in params.h is changed to 'e', update this block to copy euc_dist.* instead.
+if [ -f "../data/$COUNTRY/Scales/$SCALE/road_dist.bin" ]; then
+    cp ../data/$COUNTRY/Scales/$SCALE/road_dist.bin ../data/
+else
+    cp ../data/$COUNTRY/Scales/$SCALE/road_dist.csv ../data/
+fi
 cp ../data/$COUNTRY/Fitted/$SCALE/Theta_$T2/tran_params.csv ../data/
 cp ../data/$COUNTRY/country.json ../data/
 cp ../data/$COUNTRY/initaggs.csv ../data/

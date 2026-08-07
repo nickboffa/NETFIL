@@ -148,9 +148,9 @@ void Region::seed_lf(){
                 for(int i = 1; i <= worm_count; ++ i){
                     double mature_period;
                   
-                    mature_period = (1-init_beta(1,init_beta_b))*normal(MATURE_PERIOD_MEAN, MATURE_PERIOD_MEAN_STD);
+                    mature_period = (1-init_beta(1,init_beta_b))*normal(mature_period_mean, mature_period_mean_std);
                     
-                    if(random_real() < PROPORTION_MALE_AGENT){ //has one male mature
+                    if(random_real() < proportion_male_agent){ //has one male mature
                         cur->wvec.push_back(new Worm('M', 0, mature_period ,'M'));
                         ++wm;
                     }
@@ -175,10 +175,10 @@ void Region::seed_lf(){
                     n_worms = max(poisson(init_poisson),1);
                 
                     for(int i = 1; i <= n_worms; ++ i){ 
-                        double immature_period = (1-init_beta(1,init_beta_b))*normal(IMMATURE_PERIOD_MEAN,IMMATURE_PERIOD_MEAN_STD);
-                        double mature_period = normal(MATURE_PERIOD_MEAN,MATURE_PERIOD_MEAN_STD);
+                        double immature_period = (1-init_beta(1,init_beta_b))*normal(immature_period_mean,immature_period_mean_std);
+                        double mature_period = normal(mature_period_mean,mature_period_mean_std);
 
-                        if(random_real() < PROPORTION_MALE_WORM){
+                        if(random_real() < proportion_male_worm){
                             cur->wvec.push_back(new Worm('P', random_real()*immature_period, mature_period ,'M'));
                         }
                         else{
@@ -196,10 +196,10 @@ void Region::seed_lf(){
                 n_worms = max(poisson(init_poisson),1);
                 
                 for(int i = 1; i <= n_worms; ++ i){ 
-                    double immature_period = (1-init_beta(1,init_beta_b))*normal(IMMATURE_PERIOD_MEAN,IMMATURE_PERIOD_MEAN_STD);
-                    double mature_period = normal(MATURE_PERIOD_MEAN,MATURE_PERIOD_MEAN_STD);
+                    double immature_period = (1-init_beta(1,init_beta_b))*normal(immature_period_mean,immature_period_mean_std);
+                    double mature_period = normal(mature_period_mean,mature_period_mean_std);
 
-                    if(random_real() < PROPORTION_MALE_WORM){
+                    if(random_real() < proportion_male_worm){
                         cur->wvec.push_back(new Worm('P', random_real()*immature_period, mature_period ,'M'));
                     }
                     else{

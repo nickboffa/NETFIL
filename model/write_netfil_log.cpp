@@ -22,8 +22,7 @@ void write_netfil(
     time_t end_time,
     clock_t cpu_start,
     clock_t cpu_end,
-    Region *rgn,
-    const CountryConfig& cfg
+    Region *rgn
 ) {
     string basename = filename;
     if (basename.size() >= 4 && basename.substr(basename.size() - 4) == ".csv") {
@@ -75,8 +74,8 @@ void write_netfil(
     
 
     write_section(netfil, "MDA rounds");
-    for (size_t i = 0; i < cfg.mda_rounds.size(); ++i) {
-        const MDARound& r = cfg.mda_rounds[i];
+    for (size_t i = 0; i < rgn->mda_rounds.size(); ++i) {
+        const MDARound& r = rgn->mda_rounds[i];
         write_value(netfil, "Round",    i + 1);
         write_value(netfil, "Year",     r.year);
         write_value(netfil, "Drug",     r.drug);
@@ -93,20 +92,20 @@ void write_netfil(
     }
 
     write_section(netfil, "Year parameters");
-    write_value(netfil, "Starting year of simulation", cfg.init_year);
-    write_value(netfil, "Ending year of simulation",   cfg.end_year);
-    write_value(netfil, "No. years simulated",         cfg.sim_years());
+    write_value(netfil, "Starting year of simulation", rgn->init_year);
+    write_value(netfil, "Ending year of simulation",   rgn->end_year);
+    write_value(netfil, "No. years simulated",         rgn->sim_years);
     
     write_section(netfil, "Worm parameters");
-    write_value(netfil, "Prop worms that are male", PROPORTION_MALE_WORM);
-    write_value(netfil, "Immature period mean", IMMATURE_PERIOD_MEAN);
-    write_value(netfil, "Immature period stdev", IMMATURE_PERIOD_MEAN_STD);
-    write_value(netfil, "Mature period mean", MATURE_PERIOD_MEAN);
-    write_value(netfil, "Mature period stdev", MATURE_PERIOD_MEAN_STD);
+    write_value(netfil, "Prop worms that are male", rgn->proportion_male_worm);
+    write_value(netfil, "Immature period mean", rgn->immature_period_mean);
+    write_value(netfil, "Immature period stdev", rgn->immature_period_mean_std);
+    write_value(netfil, "Mature period mean", rgn->mature_period_mean);
+    write_value(netfil, "Mature period stdev", rgn->mature_period_mean_std);
 
     write_section(netfil, "Human parameters");
-    write_value(netfil, "Prop humans that are male", PROPORTION_MALE_AGENT);
-    write_value(netfil, "Proportion of group >5yo that commute", COMMUTING_PROP);
+    write_value(netfil, "Prop humans that are male", rgn->proportion_male_agent);
+    write_value(netfil, "Proportion of group >5yo that commute", rgn->commuting_prop);
     write_value(netfil, "Number of age groups", N_AGE_GROUPS);
     write_value(netfil, "Maximum age age upon init", N_AGE_GROUPS * WIDTH_AGE_GROUPS - 1);
 
@@ -124,7 +123,7 @@ void write_netfil(
         write_value(netfil, "Allowed initial MF:ANT ratio range", ratio_range);
     }
 
-    write_value(netfil, "Probability you lose antigen each day", DAILY_PROB_LOSE_ANT);
+    write_value(netfil, "Probability you lose antigen each day", rgn->daily_prob_lose_ant);
 
     double seed_success_pct = 100.0 * rgn->n_sims_run / rgn->total_seed_attempts;
     write_value(netfil, "Seeding success rate (%)", seed_success_pct);

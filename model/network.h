@@ -1,5 +1,6 @@
 #ifndef network_hpp
 #define network_hpp
+#include <array>
 #include <string>
 
 #include "mda.h"
@@ -63,35 +64,21 @@ public:
     double theta2;
     double theta3;
 
-    double immature_to_antigen;     //at init the ratio of people with just immature worms to antigen positive people (fitted) 
-    double immature_and_ant;       //at init the ratio of people with people who are ant pos but mf negative with immature worms
-
     double worktonot = 0;               //where do a majortiy of bites occur?
 
     double mf_to_ant_2014; //used to save fitting data
-    
+
     double agg_param;
     double agg_scale;
 
-    double init_beta_b;
-    double init_poisson;
     double sigma_group;
     double beta_0;
 
-    double init_ant_prev;      // target ANT prevalence for seeding (proportion 0–1)
-    double init_ant_prev_min;  // acceptance lower bound on seeded ANT prev (proportion 0–1)
-    double init_ant_prev_max;  // acceptance upper bound on seeded ANT prev (proportion 0–1)
-    bool   use_mf_prev_mode;
-    double init_mf_prev_min        = 0;  // set when use_mf_prev_mode == true  (MF prevalence = inf/rpop)
-    double init_mf_prev_max        = 0;
-    double init_mf_ant_ratio_min   = 0;  // set when use_mf_prev_mode == false (MF:ANT ratio  = inf/ant_pos)
-    double init_mf_ant_ratio_max   = 0;
     // Computed by seed_lf() and used in the acceptance loop:
     double init_ant_prev_obs;    // observed ANT prevalence  (proportion 0–1, = ant_pos/rpop)
     double init_mf_prev_obs;     // observed MF prevalence   (proportion 0–1, = inf_indiv/rpop)
     double init_ratio_obs;       // observed MF:ANT ratio    (= inf_indiv/ant_pos)
 
-    double age_dist[N_AGE_GROUPS];     //container for the age distribution
     int age_dist_lower[N_AGE_GROUPS];
     int age_dist_upper[N_AGE_GROUPS];
     //used to keep track of total population for easy analysis
@@ -121,18 +108,55 @@ public:
 
     map<int, int> group_pops;           //pop in each group
  
-    double mortality_rate[N_AGE_GROUPS];                //mortatlity rates
-    double birth_rate[N_AGE_GROUPS];
-    double exposure_by_age[16];
+    // Simulation years (loaded from country.json via load_config())
+    int init_year;
+    int end_year;
+    int sim_years;
 
-    int start_year;   // set from CountryConfig.init_year in main()
-    int sim_years;    // set from CountryConfig.sim_years()  in main()
+    // Seeding
+    double init_ant_prev;      // target ANT prevalence for initial seeding (proportion 0–1)
+    double init_ant_prev_min;  // acceptance lower bound for seeded ANT prevalence (proportion 0–1)
+    double init_ant_prev_max;  // acceptance upper bound for seeded ANT prevalence (proportion 0–1)
+    // MF seeding mode set by which JSON keys are present in "seeding":
+    //   init_mf_prev_*      → use_mf_prev_mode = true  (bounds on MF prevalence = inf/rpop)
+    //   init_mf_ant_ratio_* → use_mf_prev_mode = false (bounds on MF:ANT ratio  = inf/ant_pos)
+    bool   use_mf_prev_mode;
+    double init_mf_prev_min        = 0;
+    double init_mf_prev_max        = 0;
+    double init_mf_ant_ratio_min   = 0;
+    double init_mf_ant_ratio_max   = 0;
+
+    vector<MDARound> mda_rounds;
+
+    // From default_params.json (any of these can be overridden in country.json)
+    double init_beta_b;           // worm lifespan shape parameter
+    double init_poisson;          // mean immature worm count at seeding
+    double immature_to_antigen;   // ratio of prepatent-only to antigen-positive at seeding
+    double immature_and_ant;      // proportion of antigen-positive with co-occurring immature worms
+    array<double, 16> mortality_rates;  // daily mortality rate per 5-year age bracket
+    array<double, 16> birth_rates;      // daily birth rate per 5-year age bracket
+    array<double, 16> exposure_kernel;  // mosquito exposure kernel by age bracket
+    array<double, 17> age_dist;         // cumulative age distribution CDF (17 boundary points)
+
+    double proportion_male_worm;        // proportion of new worms that are male
+    double proportion_male_agent;       // proportion of agents that are male
+    double daily_prob_lose_ant;         // daily probability of losing antigen positivity (half-life ~90 days)
+    double immature_period_mean;        // mean immature worm period (days)
+    double immature_period_mean_std;    // std dev of immature worm period (days)
+    double mature_period_mean;          // mean mature worm lifespan (days)
+    double mature_period_mean_std;      // std dev of mature worm lifespan (days)
+    double commuting_prop;              // proportion of >5yo agents that commute daily
+
+    int start_year;
     int n_sims_run = 0;             // set in main() after all sims complete
     int total_seed_attempts = 0;    // accumulated across all runs in sim()
     vector<double> achieved_coverage;  // indexed by model year (0-based)
     vector<int>    number_treated;
 
     Region(int rid, string rname);
+
+    void load_config();
+    MDAEvent make_mda_event(int calendar_year);
 
     //Functions that run on region
     void sim(int year, MDAEvent evt);                           //wrapper to run simulation

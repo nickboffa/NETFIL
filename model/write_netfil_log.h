@@ -7,6 +7,5 @@ void write_netfil(
     time_t end_time,
     clock_t cpu_start,
     clock_t cpu_end,
-    Region *rgn,
-    const CountryConfig& cfg
+    Region *rgn
 );

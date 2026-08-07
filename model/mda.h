@@ -1,6 +1,7 @@
 #ifndef mda_h
 #define mda_h
 #include "params.h"
+#include <array>
 #include <map>
 #include <string>
 #include <vector>
@@ -46,28 +47,7 @@ struct MDARound {
     int    month    = 0;   // 0 = not specified → default to day 28
     string drug;
     double coverage = 0.0;
-    int    min_age  = 2;
-};
-
-// ── Country-level simulation configuration ────────────────────────────────────
-struct CountryConfig {
-    int    init_year;
-    int    end_year;
-    // Seeding
-    double init_ant_prev;      // target ANT prevalence for initial seeding (proportion 0–1)
-    double init_ant_prev_min;  // acceptance lower bound for seeded ANT prevalence (proportion 0–1)
-    double init_ant_prev_max;  // acceptance upper bound for seeded ANT prevalence (proportion 0–1)
-    // MF seeding mode set by which JSON keys are present in "seeding":
-    //   init_mf_prev_*      → use_mf_prev_mode = true  (bounds on MF prevalence = inf/rpop)
-    //   init_mf_ant_ratio_* → use_mf_prev_mode = false (bounds on MF:ANT ratio  = inf/ant_pos)
-    bool   use_mf_prev_mode;
-    double init_mf_prev_min        = 0;  // set when use_mf_prev_mode == true
-    double init_mf_prev_max        = 0;
-    double init_mf_ant_ratio_min   = 0;  // set when use_mf_prev_mode == false
-    double init_mf_ant_ratio_max   = 0;
-    vector<MDARound> mda_rounds;
-
-    int sim_years() const { return end_year - init_year; }
+    int    min_age;
 };
 
 // ── Per-year MDA event passed to Region::sim() ────────────────────────────────
@@ -81,7 +61,5 @@ struct MDAEvent {
     int    min_age     = 0;
 };
 
-CountryConfig load_country_config(const string& path);
-MDAEvent      make_mda_event(const CountryConfig& cfg, int calendar_year);
 
 #endif /* mda_h */
