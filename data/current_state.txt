@@ -1,3 +1,0 @@
-country=ASM
-scale=Raster550
-theta2=1

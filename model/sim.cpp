@@ -251,8 +251,9 @@ void Region::seed_lf(){
 
         //shuffling!
         partial_shuffle(bite_scales, 0,init_other_shuffle); //shuffle the top quater to randomise the most bitten scales
-        partial_shuffle(bite_scales, n_infected, bite_scales.size());
-
+        // bite_scales has already shrunk by inf_indiv.size() from the erase() loop above,
+        // so the correct start index is n_infected - inf_indiv.size(), i.e. bite_scales.size()-(rpop-n_infected).
+        partial_shuffle(bite_scales, bite_scales.size()-(rpop-n_infected), bite_scales.size());
         //now reassigning to agents! first the people with no worms 
         for(map<int, Agent*>::iterator j = no_worms_indiv.begin(); j != no_worms_indiv.end(); ++j){
             Agent *agt = j->second;

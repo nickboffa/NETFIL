@@ -84,11 +84,12 @@ void write_netfil(
         netfil << endl;
     }
 
-    write_section(netfil, "Drugs parameters");
+    write_section(netfil, "Drug parameters");
 
     for (const auto& [name, drug] : DRUG_DICT) {
         write_value(netfil, "Drug", name);
         drug.print_drugs(netfil);
+        netfil << endl;
     }
 
     write_section(netfil, "Year parameters");

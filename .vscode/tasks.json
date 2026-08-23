@@ -32,7 +32,7 @@
         {
             "label": "Build and Run (debug)",
             "type": "shell",
-            "command": "g++ -std=c++20 -g model/*.cpp -o model/main && cd model && ./main ../output/${input:outFile}.csv",
+            "command": "g++ -std=c++20 -g model/*.cpp -o model/main && cd model && ./clean_inputs.sh && ./main ../output/${input:outFile}.csv",
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -42,7 +42,7 @@
         {
             "label": "Build and Run (run fast)",
             "type": "shell",
-            "command": "g++ -std=c++20 -O2 model/*.cpp -o model/main && cd model && ./main ../output/${input:outFile}.csv",
+            "command": "g++ -std=c++20 -O2 model/*.cpp -o model/main && cd model && ./clean_inputs.sh && ./main ../output/${input:outFile}.csv",
             "options": {
                 "cwd": "${workspaceFolder}"
             },

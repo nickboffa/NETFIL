@@ -33,6 +33,7 @@ public:
 // DA (DEC + Albendazole) parameters are placeholders — verify against
 // calibrated literature values before running WSM simulations.
 inline const map<string, Drugs> DRUG_DICT = {
+    {"Old",   Drugs(0.55,  0.45,  0, 100, 0.5)},
     {"MoxDA", Drugs(0.457, 0.514, 0, 100, 0.5)},
     {"IDA",   Drugs(0.403, 0.246, 0, 100, 0.5)},
     {"DA",    Drugs(0.403, 0.246, 0, 100, 0.5)}

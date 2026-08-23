@@ -2,12 +2,21 @@ library(jsonlite)
 
 x <- c(20, 1488.961)     # avg distance between polygons, 1488.961 from calc_avg_dist_between_villages median(dists)
 y <- c(0.69, 0.30)       # ICCs
-fit <- lm(y ~ x)
+lfit <- lm(log(y) ~ x)   # i.e. y = a * exp(b * x)
 
 distance_1 <- 108.256
 
+predict(lfit, newdata = data.frame(x = 5*distance_1)) |> exp()
+
+plot_fit <- function(mod_fit) {
+  xs <- seq(1, 2000)
+  ys <- predict(mod_fit, newdata = data.frame(x = xs)) |> exp()
+  plot(xs, ys)
+}
+plot_fit(lfit)
+
 calc_sigma_and_beta <- function(distance, ant_0) {
-  icc <- predict(fit, newdata = data.frame(x = distance))
+  icc <- predict(fit, newdata = data.frame(x = distance)) |> exp()
   sigma_group <- sqrt(icc / (1 - icc) * pi^2 / 3)
 
   expected_prev <- function(mu) {
@@ -27,7 +36,7 @@ calc_sigma_and_beta <- function(distance, ant_0) {
 
 # Raster scale factor k: folder name is Raster(k*110), distance is k * distance_1
 country_scales <- list(
-  ASM = c(2, 5, 6),   # Raster220, Raster550, Raster660
+  #ASM = c(2, 5, 6),   # Raster220, Raster550, Raster660
   WSM = c(5)          # Raster550
 )
 

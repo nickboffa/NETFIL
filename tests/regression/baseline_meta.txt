@@ -1,0 +1,5 @@
+Generated: 2026-08-19 21:13:40
+Git commit: 014e3a6
+Scenario: ASM / Raster550 / Theta_1, no MDA
+T1=0.00458581459196041  K=0.13049485785583  W=0.118355532311043  sigma_group=1.1311  beta_0=-3.9515
+n_reps=100  fast_mode=FALSE

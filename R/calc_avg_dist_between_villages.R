@@ -1,23 +1,24 @@
 library(sf)
 library(ggplot2)
 
-vil <- st_read("data/tutuila_villages.geojson")
+vil <- st_read("data_storage/wsm_district_boundaries.geojson")
+#vil <- st_read("data/tutuila_villages.geojson")
 
-# below three were merged in 2016 survey paper as a PSU
-merge_set <- c("Satala", "Anua", "Atuu")
-
-# --- check each target name exists BEFORE merging ---
-setNames(merge_set %in% vil$VILLAGE, merge_set) 
-
-present <- merge_set[merge_set %in% vil$VILLAGE]
-
-vil <- vil %>%
-  mutate(psu_name = ifelse(VILLAGE %in% present,
-                           "Satala-Anua-Atuu", VILLAGE)) %>%
-  group_by(psu_name) %>%
-  summarise(.groups = "drop")     # dissolves shared boundaries into one polygon
-
-st_write(vil, "data/tutuila_psus.geojson")
+# # below three were merged in 2016 survey paper as a PSU
+# merge_set <- c("Satala", "Anua", "Atuu")
+# 
+# # --- check each target name exists BEFORE merging ---
+# setNames(merge_set %in% vil$VILLAGE, merge_set) 
+# 
+# present <- merge_set[merge_set %in% vil$VILLAGE]
+# 
+# vil <- vil %>%
+#   mutate(psu_name = ifelse(VILLAGE %in% present,
+#                            "Satala-Anua-Atuu", VILLAGE)) %>%
+#   group_by(psu_name) %>%
+#   summarise(.groups = "drop")     # dissolves shared boundaries into one polygon
+# 
+# st_write(vil, "data/tutuila_psus.geojson")
 
 cent <- st_centroid(st_geometry(vil))
 nb   <- st_relate(vil, pattern = "F***1****")   # rook adjacency: shared edge, not just a corner
@@ -73,18 +74,4 @@ ggplot() +
   coord_sf(datum = st_crs(vil)) +
   theme_void() +
   labs(x = NULL, y = NULL)
-
-
-coef(lm(c(0.69, 0.30) ~ c(20, median(dists))))
-
-x <- c(20, median(dists))     # avg distance between polygons
-y <- c(0.69, 0.30)            # ICC
-fit <- lm(y ~ x)
-
-# line over a distance range, plus the two anchor points
-d <- seq(0, max(x) * 1.2, length.out = 100)
-plot(d, predict(fit, data.frame(x = d)), type = "l", lwd = 2, col = "steelblue",
-     xlab = "Average distance between points (m)", ylab = "ICC", ylim = c(0, 1))
-points(x, y, pch = 19, col = "firebrick")
-
 

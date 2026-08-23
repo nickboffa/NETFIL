@@ -1,0 +1,2 @@
+scale,theta2,n_particles,n_reps,n_workers,warmup_sec,wall_sec,compute_sec,started_at,finished_at
+Raster550,1,600,3,6,17.5,4645.5,27873.3,2026-08-20 19:34:22,2026-08-20 20:51:47

@@ -89,7 +89,7 @@ bool Region::pop_reload(){
     ifstream in(file.c_str());
     
     if(!in) {
-        cerr << "pop_reload: could not open " << file << endl;
+        cerr << "pop_reload: could not open " << file << ", building population fresh" << endl;
         return false;
     }
 

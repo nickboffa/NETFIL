@@ -16,4 +16,3 @@ model/main
 model/main.dSYM/
 comnbine_group_csvs.R
 .Rhistory
-data/MDAParams.csv
