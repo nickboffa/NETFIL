@@ -88,7 +88,7 @@ bool Region::pop_reload(){
     string file = CONFIG;   file = file + rname;    file = file + ".init";
     ifstream in(file.c_str());
     
-    if(!in) {
+    if (!in) {
         cerr << "pop_reload: could not open " << file << ", building population fresh" << endl;
         return false;
     }
@@ -284,6 +284,33 @@ void Region::read_parameters(){
     p = strtok(NULL, ",");     double theta_2 = atof(p);
     p = strtok(NULL, ",");     double k = atof(p);
     p = strtok(NULL, ",");     double w2n = atof(p);
+
+    // Optional 5th column: a fitted AntLoss (e.g. WSM), expressed as an
+    // antigen half-life in days rather than the raw daily retention
+    // probability — converted via daily_retention_from_halflife() (network.h).
+    // Absent in older/other countries' tran_params.csv — leaves the value
+    // set by load_config() (default_params.json) untouched.
+    p = strtok(NULL, ",");
+    if (p != NULL) daily_prob_lose_ant = daily_retention_from_halflife(atof(p));
+
+    // Optional 6th column: a fitted p_mda (effective-coverage discount).
+    // Absent in countries that don't fit it — leaves p_mda at its default
+    // (1.0, i.e. no discount) set in network.h.
+    p = strtok(NULL, ",");
+    if (p != NULL) p_mda = atof(p);
+
+    // Optional 7th column: a fitted ster_to_kill (DA/IDA kill-vs-sterilise
+    // split). Absent in countries that don't fit it — leaves ster_to_kill at
+    // its literature-placeholder default set in network.h.
+    p = strtok(NULL, ",");
+    if (p != NULL) ster_to_kill = atof(p);
+
+    // Optional 8th column: a fitted mda_total_effect (combined DA/IDA
+    // kill+sterilise probability). Absent in countries that don't fit it —
+    // leaves mda_total_effect at its literature-placeholder default set in
+    // network.h.
+    p = strtok(NULL, ",");
+    if (p != NULL) mda_total_effect = atof(p);
 
     delete []str;
     in.close();

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 VALID_T2=(01 05 1 25)
-VALID_SCALES=(Village Raster220 One Many Raster660 Raster550)
+VALID_SCALES=(Village Raster220 One Many Raster660 Raster550 Synth550 Synth550_v1)
 VALID_COUNTRIES=(ASM WSM)
 T2=""; SCALE=""; COUNTRY=""
 
@@ -30,6 +30,7 @@ else
     cp ../data/$COUNTRY/Scales/$SCALE/road_dist.csv ../data/
 fi
 cp ../data/$COUNTRY/Fitted/$SCALE/Theta_$T2/tran_params.csv ../data/
+cp ../data/$COUNTRY/Scales/$SCALE/clustering_params.csv ../data/
 cp ../data/$COUNTRY/country.json ../data/
 cp ../data/$COUNTRY/initaggs.csv ../data/
 

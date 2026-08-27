@@ -1,10 +1,12 @@
 {
   "init_year": 1998,
-  "end_year": 2024,
+  "end_year": 2004,
+  "end_day": 0,
   "seeding": {
     "init_ant_prev": 0.0442,
     "init_ant_prev_min": 0.0432,
     "init_ant_prev_max": 0.0452,
+    "init_mf_prev": 0.0117,
     "init_mf_prev_min": 0.0107,
     "init_mf_prev_max": 0.0127
   },

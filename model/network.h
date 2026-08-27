@@ -1,12 +1,21 @@
 #ifndef network_hpp
 #define network_hpp
 #include <array>
+#include <cmath>
 #include <string>
 
 #include "mda.h"
 #include "agent.h"
 
 using namespace std;
+
+// CLI/tran_params.csv express AntLoss as an antigen half-life in days (more
+// interpretable/fittable than the raw daily retention probability) — this
+// converts once at the point of assignment; daily_prob_lose_ant itself stays
+// the raw per-day probability everywhere it's actually used (statistics.cpp).
+inline double daily_retention_from_halflife(double half_life_days) {
+    return pow(0.5, 1.0 / half_life_days);
+}
 
 class Group;                           // Groups of people akin to villages
 class Region;                          // Region which is comprised of the groups!
@@ -112,6 +121,9 @@ public:
     int init_year;
     int end_year;
     int sim_years;
+    int end_day = 363;  // optional "end_day" in country.json: day-of-year (0-363) to
+                         // stop at within the final simulated year, skipping the rest
+                         // of that year. Defaults to 363 (simulate the full final year).
 
     // Seeding
     double init_ant_prev;      // target ANT prevalence for initial seeding (proportion 0–1)
@@ -121,6 +133,7 @@ public:
     //   init_mf_prev_*      → use_mf_prev_mode = true  (bounds on MF prevalence = inf/rpop)
     //   init_mf_ant_ratio_* → use_mf_prev_mode = false (bounds on MF:ANT ratio  = inf/ant_pos)
     bool   use_mf_prev_mode;
+    double init_mf_prev            = 0;
     double init_mf_prev_min        = 0;
     double init_mf_prev_max        = 0;
     double init_mf_ant_ratio_min   = 0;
@@ -140,12 +153,24 @@ public:
 
     double proportion_male_worm;        // proportion of new worms that are male
     double proportion_male_agent;       // proportion of agents that are male
-    double daily_prob_lose_ant;         // daily probability of losing antigen positivity (half-life ~90 days)
+    double daily_prob_lose_ant;         // daily probability of RETAINING antigen positivity — set via daily_retention_from_halflife(), not directly from CLI/file (which express this as a half-life in days)
     double immature_period_mean;        // mean immature worm period (days)
     double immature_period_mean_std;    // std dev of immature worm period (days)
     double mature_period_mean;          // mean mature worm lifespan (days)
     double mature_period_mean_std;      // std dev of mature worm lifespan (days)
     double commuting_prop;              // proportion of >5yo agents that commute daily
+    double p_mda = 1.0;                 // effective-coverage discount: actual coverage = country.json's round coverage * p_mda
+    // Re-splits DA/IDA's combined kill+sterilise effect (mda_total_effect
+    // below) between the two: kill_prob = (1-ster_to_kill) * total,
+    // full_ster_prob = ster_to_kill * total. Default reproduces the
+    // literature-placeholder split (0.246 sterilise / 0.649 total).
+    double ster_to_kill = 0.246 / 0.649;
+    // Combined probability that MDA either kills or sterilises a DA/IDA
+    // worm at all — the fraction NOT covered by this remains fully fertile
+    // post-treatment. Default is the Hardy et al. literature placeholder
+    // (see mda.h's DA_IDA_TOTAL_EFFECT); distinct from ster_to_kill, which
+    // only re-splits this total rather than changing how many worms it covers.
+    double mda_total_effect = 0.649;
 
     int start_year;
     int n_sims_run = 0;             // set in main() after all sims complete

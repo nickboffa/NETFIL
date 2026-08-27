@@ -17,6 +17,12 @@ void Region::output_epidemics(int year, int day, MDAEvent evt){
     //worm burdens
     double immature_worm_only = 0;
     double non_mated_adult = 0;
+    // Breakdown of *why* an antigen-positive person isn't Mf-positive:
+    // mda_sterilised_pair + natural_single_sex == non_mated_adult, and
+    // mf_total + non_mated_adult + residual_ant_only == ant_total.
+    double mda_sterilised_pair = 0;  // status 'U', but mature worms of BOTH sexes are present — MDA zeroed one side's contribution (Agent::mda_sterile)
+    double natural_single_sex  = 0;  // status 'U', only ever had mature worm(s) of one sex — no MDA involvement
+    double residual_ant_only   = 0;  // no live mature worms at all (status S/E) — Ag+ only from daily_prob_lose_ant decay since last_mworm_time
     array<double, 10> mated_adult{};
 
     const array<const char*, 10> MATED_ADULT_LABELS = {
@@ -49,12 +55,31 @@ void Region::output_epidemics(int year, int day, MDAEvent evt){
                 ++mated_adult[bucket];
             }
             //all people infected with any number of mature worms or who still have lingering antibodies are counted
-            if(agt->status == 'I' || agt->status == 'U'|| random_real() < pow(daily_prob_lose_ant, (year*365 +day) - agt->last_mworm_time) ){
-                
+            if(agt->status == 'I' || agt->status == 'U'){
                 ++antigen_pos_groups[j->first - 1];
                 ++ant_total;
+            } else if (random_real() < pow(daily_prob_lose_ant, (year*365 +day) - agt->last_mworm_time)) {
+                ++antigen_pos_groups[j->first - 1];
+                ++ant_total;
+                ++residual_ant_only;
             }
-            if (agt->status == 'U') ++non_mated_adult;
+            if (agt->status == 'U') {
+                ++non_mated_adult;
+                // Both sexes present as live mature worms, but overall still
+                // 'U' (not 'I') — the only way that happens is MDA zeroing
+                // out one sex's contribution via mda_sterile (see
+                // Agent::update() in agent.cpp). Otherwise this agent simply
+                // never had an opposite-sex mature worm to begin with.
+                bool has_mature_male = false, has_mature_female = false;
+                for (Worm* w : agt->wvec) {
+                    if (w->status == 'M') {
+                        if (w->sex == 'M') has_mature_male = true;
+                        else has_mature_female = true;
+                    }
+                }
+                if (has_mature_male && has_mature_female) ++mda_sterilised_pair;
+                else ++natural_single_sex;
+            }
             if (agt->status == 'E') ++immature_worm_only;
         }
 
@@ -99,6 +124,9 @@ void Region::output_epidemics(int year, int day, MDAEvent evt){
         out << "number_treated,";
         out << "immature_worm_only,";
         out << "non_mated_adult,";
+        out << "mda_sterilised_pair,";
+        out << "natural_single_sex,";
+        out << "residual_ant_only,";
         for (const auto& label : MATED_ADULT_LABELS) {
             out << label << ",";
         }
@@ -144,6 +172,9 @@ void Region::output_epidemics(int year, int day, MDAEvent evt){
     out << number_treated[year] << ",";
     out << immature_worm_only << ",";
     out << non_mated_adult << ",";
+    out << mda_sterilised_pair << ",";
+    out << natural_single_sex << ",";
+    out << residual_ant_only << ",";
     for (double count : mated_adult) {
         out << count << ",";
     }

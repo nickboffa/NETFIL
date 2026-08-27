@@ -1,6 +1,7 @@
 {
   "init_year": 2010,
-  "end_year": 2017,
+  "end_year": 2016,
+  "end_day": 0,
   "seeding": {
     "init_ant_prev": 0.0325,
     "init_ant_prev_min": 0.0315,

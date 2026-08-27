@@ -25,7 +25,8 @@ void Region::load_config() {
 
     init_year = j.at("init_year");
     end_year  = j.at("end_year");
-    sim_years = end_year - init_year;
+    sim_years = end_year - init_year + 1;  // end_year is inclusive: the last calendar year simulated
+    end_day   = j.value("end_day", 363);
 
     const auto& s = j.at("seeding");
     init_ant_prev     = s.at("init_ant_prev");
@@ -34,6 +35,7 @@ void Region::load_config() {
 
     if (s.contains("init_mf_prev_min")) {
         use_mf_prev_mode  = true;
+        init_mf_prev      = s.at("init_mf_prev");
         init_mf_prev_min  = s.at("init_mf_prev_min");
         init_mf_prev_max  = s.at("init_mf_prev_max");
     } else {
@@ -91,8 +93,8 @@ MDAEvent Region::make_mda_event(int calendar_year) {
             evt.apply      = true;
             evt.day        = (r.month > 0) ? (r.month - 1) * 30 : 28;
             evt.drug_name  = r.drug;
-            evt.drug_params = DRUG_DICT.at(r.drug);
-            evt.coverage   = r.coverage;
+            evt.drug_params = lookup_drug(r.drug, ster_to_kill, mda_total_effect);
+            evt.coverage   = r.coverage * p_mda;  // p_mda discounts nominal coverage down to effective coverage
             evt.min_age    = r.min_age;
             return evt;
         }

@@ -1,198 +1,69 @@
-library(tidyverse)
-library(abc)        # still used for the final GLM regression-adjustment step
 library(EasyABC)    # ABC_sequential() — sequential ABC / ABC-SMC implementation
-library(HDInterval)
-library(jsonlite)
 
-# ── Country / scale configuration ─────────────────────────────────────────────
-COUNTRY <- "ASM"
-SCALE   <- "Raster550"
+source("R/abc_common.R")
 
-# ── Paths ──────────────────────────────────────────────────────────────────────
-script_dir <- here::here()
-model_dir  <- file.path(script_dir, "model")
-data_dir   <- file.path(script_dir, "data")
-output_dir <- file.path(script_dir, "output")   # = model/../output = ../output from binary
-fit_base   <- file.path(data_dir, COUNTRY, "Fitted", SCALE)
-binary     <- file.path(model_dir, "main")
+# ── ABC settings specific to sequential ABC (ABC-SMC) ───────────────────────────
+# N_PARTICLES here is the size of the final retained population — unlike
+# abc_raster.R's N_PARTICLES (total draws from the prior), see cost note below.
+N_PARTICLES <- 50
 
-dir.create(output_dir, showWarnings = FALSE)
-dir.create(fit_base,   showWarnings = FALSE, recursive = TRUE)
-
-# ── Clear stale population state ───────────────────────────────────────────────
-# ABC.init from a previous scale would cause a crash (wrong group_blocks loaded).
-# clean_inputs.sh uses paths relative to model/ (../$config/...) — it must be
-# run with model/ as the working directory, or those paths silently resolve
-# to the wrong place and nothing gets deleted (this WAS happening: relative
-# to script_dir the "../$config/" landed one level above the repo entirely).
-message("Clearing stale population cache...")
-old_wd <- setwd(model_dir)
-system2("bash", args = "clean_inputs.sh", stdout = FALSE, stderr = FALSE)
-setwd(old_wd)
-
-# ── Observed targets ────────────────────────────────────────────────────────────
-OBS_ANT_2016 <- 6.2   # ANT prevalence % (Lau et al. 2020, community survey age ≥8)
-OBS_MF_2016  <- 1.59  # MF prevalence % (25.6% of ANT+ Mf-positive, back-calculated)
-OBS_ICC_2016 <- 0.49 # 0.5134347 # exponential y = a * exp (b * x)
-
-#OBS_ICC_2016 <- 0.551603405400143 # village-level ICC estimated from 2016 survey's
-                                   # household- and region-level ICC (see notes) —
-                                   # independent of the 2010 seeding ICC below, which
-                                   # is now fitted rather than fixed by distance decay
-
-# ICC is now load-bearing: it's the only thing constraining the fitted 2010
-# seeding ICC (see ICC10_MIN/MAX below), so it must be fit. Kept as a toggle
-# only for quick debugging — leave TRUE for real fits.
-FIT_ICC <- TRUE
-
-# ── Semi-informative uniform priors (guessed from past plots)
-T1_MIN <- 0.0;  T1_MAX <- 0.015 # 0.01 originally
-K_MIN  <- 0.01;  K_MAX  <- 0.75 # 0.3 originally
-W_MIN  <- 0.0;  W_MAX  <- 0.8
-
-# T1_MIN <- 0.0;    T1_MAX <- 0.03
-# K_MIN  <- 0.0;  K_MAX  <- 0.6
-# W_MIN  <- 0.0;    W_MAX  <- 0.2
-
-# k -> 0 makes bite_gamma(0, Inf) hang forever during agent construction, so
-# the prior actually sampled from below floors K_MIN at this value.
-K_MIN_EFF <- max(K_MIN, 0.01)
-
-# 2010 seeding ICC — previously fixed via the distance-decay line in
-# write_clustering_params.R; now a free parameter fit against OBS_ICC_2016.
-# ICC10_MIN <- 0.1;  ICC10_MAX <- 0.6
-ICC10_MIN <- 0.4; ICC10_MAX <- 0.9
-
-
-# ── ABC settings ───────────────────────────────────────────────────────────────
-N_PARTICLES <- 50      # size of the final retained population — see cost note below
-N_REPS      <- 2     # was 5
-N_POSTERIOR <- 10000   # was 10000, only affects output resolution, not fitted parameters
-ABC_TOL     <- 0.05  # only used cosmetically now, for the L1-distance plot's reference line
-N_WORKERS   <- 6     # parallel workers (= cores to use; leave ≥1 free for OS/VSCode)
-
-# ── Sequential ABC (ABC-SMC) settings ───────────────────────────────────────────
-# EasyABC::ABC_sequential() replaces abc_raster.R's one-shot "draw N_PARTICLES,
-# keep the closest ABC_TOL fraction" step. It runs Lenormand et al. (2012)'s
-# adaptive population Monte Carlo algorithm: an initial population is drawn
-# from the prior, then repeatedly resampled + perturbed + re-filtered against
-# a shrinking tolerance until the per-step acceptance rate drops below
-# SMC_P_ACC_MIN. This is EasyABC's own recommended default method — of its
-# five algorithms ("Beaumont", "Drovandi", "Delmoral", "Lenormand",
-# "Emulation") it's the one built specifically for uniform priors (which is
-# all we have here) and needs no hand-tuned tolerance schedule.
+# EasyABC::ABC_sequential() replaces abc_raster.R's one-shot rejection step
+# with Lenormand et al. (2012)'s adaptive population Monte Carlo: draw from
+# the prior, then repeatedly resample + perturb + re-filter against a
+# shrinking tolerance until a step's acceptance rate drops below
+# SMC_P_ACC_MIN. Chosen since it needs no hand-tuned tolerance schedule and
+# requires uniform priors, which is all we have here.
 #
-# `nb_simul` is EasyABC's total per-step simulation budget, of which
-# `alpha` (kept) survive each step as the retained population — so to end up
-# with a final population of N_PARTICLES, nb_simul = N_PARTICLES / SMC_ALPHA.
-# Total simulation cost is nb_simul for the first step, plus
-# nb_simul * (1 - SMC_ALPHA) for every step after, until p_acc < SMC_P_ACC_MIN.
-#
-# COST NOTE: sequential ABC only costs *less* than abc_raster.R's one-shot
-# N_PARTICLES=600 draw if it's not also asked for a much larger/tighter final
-# population — abc_raster.R actually only ever kept ~ABC_TOL*600 = 30
-# particles as "accepted". Asking EasyABC for a final population of 600 (an
-# earlier version of this script did) meant step 1 alone already cost 1200,
-# before any adaptive refinement steps — several times abc_raster.R's total.
-# With N_PARTICLES=50 and SMC_ALPHA=0.5: step 1 costs 100, and every
-# subsequent step costs another 50, stopping once a step's acceptance rate
-# drops below SMC_P_ACC_MIN. Raising SMC_P_ACC_MIN (loosening the stopping
-# rule) trades some final-tolerance sharpness for fewer of those extra steps
-# — EasyABC's own docs frame it exactly this way. With these settings, total
-# cost should land at a few hundred simulations — comparably fast to, or
-# faster than, abc_raster.R's 600 — though (unlike a fixed-generation-count
-# design) the exact total isn't knowable in advance: it depends on how
-# quickly the acceptance rate falls, which is problem-dependent.
+# nb_simul = N_PARTICLES / SMC_ALPHA draws per step, of which SMC_ALPHA
+# survive as the retained population. Total cost isn't fixed in advance — it
+# can run well past a rough estimate, since with few draws/step the
+# acceptance-rate estimate is coarse and can hover near SMC_P_ACC_MIN for a
+# while. Raising SMC_P_ACC_MIN stops it sooner, trading away some
+# final-tolerance sharpness.
 SMC_ALPHA     <- 0.5   # EasyABC default: fraction of each step's draws kept
-SMC_P_ACC_MIN <- 0.15  # raised from EasyABC's 0.05 default — stop sooner, trade some precision for speed
-
-THETA2_VALS   <- c(1.0)          # just one to test
-THETA2_LABELS <- c("Theta_1")
-THETA2_SUFFIX <- c("1")
-
-
-# ── Data setup ─────────────────────────────────────────────────────────────────
-message("Copying ", COUNTRY, "/", SCALE, " scale data to data/...")
-scale_files <- list.files(file.path(data_dir, COUNTRY, "Scales", SCALE), full.names = TRUE)
-file.copy(scale_files, data_dir, overwrite = TRUE)
-file.copy(file.path(data_dir, COUNTRY, "country.json"), data_dir, overwrite = TRUE)
-writeLines(
-  c(paste0("country=", COUNTRY), paste0("scale=", SCALE), paste0("theta2=", THETA2_SUFFIX[1])),
-  file.path(data_dir, "current_state.txt")
-)
-
-# Target 2010 seeded ANT prevalence — needed to solve beta_0 for each
-# particle's sampled ICC10 (see icc_to_sigma_beta below).
-country_cfg <- fromJSON(file.path(data_dir, COUNTRY, "country.json"))
-ANT_0 <- country_cfg$seeding$init_ant_prev
-
-# ── Helper: convert a 2010 seeding ICC into (sigma_group, beta_0) ──────────────
-# Same derivation as write_clustering_params.R's calc_sigma_and_beta(), but
-# taking ICC directly instead of computing it from inter-group distance —
-# ICC10 is now a free ABC parameter, not fixed by the distance-decay line.
-# Defined at top level (not just inside build_model() below) because the
-# warm-up run outside the parallel workers needs it too.
-icc_to_sigma_beta <- function(icc, ant_0) {
-  sigma_group <- sqrt(icc / (1 - icc) * pi^2 / 3)
-
-  expected_prev <- function(mu) {
-    integrate(
-      function(x) plogis(x) * dnorm(x, mean = mu, sd = sigma_group),
-      lower = -Inf, upper = Inf
-    )$value
-  }
-
-  # expected_prev(mu) is monotonic increasing in mu, from ~0 (mu -> -Inf) to
-  # 0.5 (mu = 0), so any sufficiently negative lower bound brackets a root.
-  # A fixed -10 worked for the old ICC10_MAX (0.6, sigma_group ~2.2) but not
-  # the wider prior now in use: at ICC10 = 0.9, sigma_group ~5.4 and
-  # expected_prev(-10) is already above target ant_0, so uniroot() throws
-  # "f() values at end points not of opposite sign" for high-ICC10 particles
-  # (intermittent, since ICC10 is drawn per particle). Scale the lower bound
-  # with sigma_group so it stays valid regardless of how wide the ICC10 prior
-  # gets.
-  beta_0 <- uniroot(
-    f        = function(mu) expected_prev(mu) - ant_0,
-    interval = c(-10 - 10 * sigma_group, 0)
-  )$root
-
-  list(sigma_group = sigma_group, beta_0 = beta_0)
-}
+# Back down to EasyABC's own default (0.05) from the 0.15 first used here —
+# the first run's p_acc plateaued at ~0.55-0.6 for several steps before
+# finally starting to drop (only reaching 0.15 at step 12, stopping at step
+# 17 when it hit 0.03), so 0.15 was stopping well before the population had
+# actually finished tightening. Lower means more steps/cost, but the
+# tightened priors mean each step is already well-targeted.
+SMC_P_ACC_MIN <- 0.05
 
 # ── Helper: build the model() function ABC_sequential() calls per particle ─────
-# EasyABC's cluster mode (n_cluster > 1) dispatches `model` to PSOCK workers
-# via parallel::parLapply *without* exporting the calling session's globals —
-# each worker is a bare fresh R process (only base/methods/datasets/utils/
-# stats attached, no tidyverse). So everything `model` needs — model_dir,
-# output_dir, theta2, suffix, N_REPS, ANT_0, fit_stats, and the run_model/
-# parse_output helpers themselves — has to live in model's own closure
-# (captured here as build_model()'s local variables) rather than being read
-# off the top-level script environment, and every tidyverse call inside has
-# to be fully namespaced (readr::, dplyr::, purrr::) since nothing is
-# library()'d on the worker.
+# EasyABC's cluster mode dispatches `model` to bare worker processes with no
+# access to this session's globals, so everything model() needs has to live
+# in its own closure (build_model()'s arguments and nested helpers below)
+# rather than the top-level script environment (including R/abc_common.R's
+# icc_to_sigma_beta()/run_model()/parse_output(), all duplicated below for the
+# same reason), and every tidyverse call inside must be namespaced since
+# nothing is library()'d on the worker.
 #
-# use_seed = TRUE (required by EasyABC for n_cluster > 1 anyway) hands model()
-# a per-call integer seed as x[1] — used here not for RNG seeding (the model's
-# randomness lives in the C++ binary, not R) but as a collision-free id for
-# run_model()'s output file, unique across every particle in the whole
-# sequential run.
-build_model <- function(model_dir, output_dir, theta2, suffix, N_REPS, ANT_0, fit_stats) {
-  # These arguments are lazy promises pointing at symbols in the *master*
-  # session's global environment. If left unforced, that lookup is still
-  # unresolved when this closure is serialized to a worker — and a promise's
-  # environment doesn't survive serialization the way a plain binding does
-  # (globalenv is special-cased and comes back empty on the worker). Forcing
-  # every argument here, before it's captured by the nested functions below,
-  # bakes in its actual value instead of a dangling lookup.
+# use_seed = TRUE hands model() a per-call integer seed as x[1], used here as
+# a collision-free id for run_model()'s output file.
+build_model <- function(model_dir, output_dir, theta2, suffix, N_REPS, ANT_0, fit_stats,
+                         fit_year, fit_icc, fixed_sigma_group, fixed_beta_0,
+                         fit_t1, fixed_t1, fit_w, fixed_w, fit_k, fixed_k,
+                         fit_ant_loss, fixed_ant_loss,
+                         fit_p_mda, fixed_p_mda,
+                         fit_ster_to_kill, fixed_ster_to_kill,
+                         fit_mda_effect, fixed_mda_effect) {
+  # force() every argument: left as lazy promises, they'd still be unresolved
+  # references into this session's globalenv when serialized to a worker,
+  # which has its own empty globalenv — forcing bakes in the actual value.
   force(model_dir); force(output_dir); force(theta2); force(suffix)
   force(N_REPS); force(ANT_0); force(fit_stats)
+  force(fit_year); force(fit_icc); force(fixed_sigma_group); force(fixed_beta_0)
+  force(fit_t1); force(fixed_t1); force(fit_w); force(fixed_w); force(fit_k); force(fixed_k)
+  force(fit_ant_loss); force(fixed_ant_loss)
+  force(fit_p_mda); force(fixed_p_mda)
+  force(fit_ster_to_kill); force(fixed_ster_to_kill)
+  force(fit_mda_effect); force(fixed_mda_effect)
 
-  # Same derivation as the top-level icc_to_sigma_beta() (used by the warm-up
-  # run and write_abc_glm_files()) — duplicated here, rather than called by
-  # name, so it's part of *this* closure's own environment and travels with
-  # it to the workers. A reference to the top-level version would suffer the
-  # same unresolved-lookup problem described above, since function lookups
-  # are resolved lexically through this frame's parent (globalenv) too.
+  # Deliberately duplicated from R/icc_to_sigma_beta.R rather than called by
+  # name or re-sourced here: workers get a bare/empty globalenv with no
+  # access to this session's sourced files any more than its variables (same
+  # reasoning as the force() calls above), so the function body itself has
+  # to travel inside the closure.
   icc_to_sigma_beta <- function(icc, ant_0) {
     sigma_group <- sqrt(icc / (1 - icc) * pi^2 / 3)
 
@@ -211,27 +82,33 @@ build_model <- function(model_dir, output_dir, theta2, suffix, N_REPS, ANT_0, fi
     list(sigma_group = sigma_group, beta_0 = beta_0)
   }
 
-  run_model <- function(id, t1, t2, k, w, sigma_group, beta_0) {
+  # Captures stderr (e.g. model/sim.cpp's seeding-attempts-exceeded message)
+  # instead of discarding it, so a particle that can't seed shows up as a
+  # real R warning with the actual C++ error text, not a silent rejection.
+  run_model <- function(id, t1, t2, k, w, sigma_group, beta_0,
+                         ant_loss = NA_real_, p_mda = NA_real_, ster_to_kill = NA_real_,
+                         mda_total_effect = NA_real_) {
     old_wd <- getwd()
     on.exit(setwd(old_wd))
     setwd(model_dir)
-    # output_epidemics() appends (ios::app) to this file — if a leftover file from
-    # a crashed prior run with the same id is still sitting in output/, the new
-    # run's rows get silently mixed in with stale ones. Remove it up front so a
-    # crash never leaves contamination for a later run to inherit.
+    # output_epidemics() appends to this file — remove any leftover from a
+    # crashed prior run so its rows don't get silently mixed in.
     unlink(file.path(output_dir, id))
-    system2("./main", args = c(id, N_REPS, t1, t2, k, w, sigma_group, beta_0), stdout = FALSE, stderr = FALSE)
+    args <- c(id, N_REPS, t1, t2, k, w, sigma_group, beta_0)
+    if (!is.na(ant_loss)) args <- c(args, ant_loss)               # 9th CLI arg
+    if (!is.na(p_mda)) args <- c(args, p_mda)                     # 10th CLI arg — needs 9th present too
+    if (!is.na(ster_to_kill)) args <- c(args, ster_to_kill)       # 11th CLI arg — needs 9th and 10th present too
+    if (!is.na(mda_total_effect)) args <- c(args, mda_total_effect) # 12th CLI arg — needs 9th-11th present too
+    system2("./main", args = args, stdout = FALSE, stderr = TRUE)
   }
 
-  # Parses output CSV for year-start summary statistics. output_epidemics
-  # writes quarterly; we use year == 2016, day == 0 rows. Returns one row per
-  # simulation replicate with columns ANT, MF, ICC.
+  # output_epidemics writes quarterly; we use year == fit_year, day == 0 rows.
   parse_output <- function(path) {
     tryCatch({
       # `name` is a string column; everything else is numeric
       dat <- readr::read_csv(path, col_types = readr::cols(name = "c", .default = "d"), show_col_types = FALSE)
-      r16 <- dplyr::filter(dat, year == 2016, day == 0)
-      if (nrow(r16) == 0) return(tibble::tibble(ANT = NA_real_, MF = NA_real_, ICC = NA_real_))
+      rY <- dplyr::filter(dat, year == fit_year, day == 0)
+      if (nrow(rY) == 0) return(tibble::tibble(ANT = NA_real_, MF = NA_real_, ICC = NA_real_))
 
       # ICC from per-group MF prevalences: ICC = sigma2 / (sigma2 + pi^2/3)
       # where sigma2 = var(logit(p_j)) across groups
@@ -246,9 +123,9 @@ build_model <- function(model_dir, output_dir, theta2, suffix, N_REPS, ANT_0, fi
       }
 
       tibble::tibble(
-        ANT = dplyr::if_else(r16$pop_total > 0, r16$ant_total / r16$pop_total * 100, NA_real_),
-        MF  = dplyr::if_else(r16$pop_total > 0, r16$mf_total  / r16$pop_total * 100, NA_real_),
-        ICC = purrr::map_dbl(seq_len(nrow(r16)), \(i) calc_icc(r16[i, ]))
+        ANT = dplyr::if_else(rY$pop_total > 0, rY$ant_total / rY$pop_total * 100, NA_real_),
+        MF  = dplyr::if_else(rY$pop_total > 0, rY$mf_total  / rY$pop_total * 100, NA_real_),
+        ICC = purrr::map_dbl(seq_len(nrow(rY)), \(i) calc_icc(rY[i, ]))
       )
     }, error = function(e) {
       warning("Failed to parse ", path, ": ", conditionMessage(e))
@@ -257,177 +134,64 @@ build_model <- function(model_dir, output_dir, theta2, suffix, N_REPS, ANT_0, fi
   }
 
   function(x) {
-    seed  <- as.integer(round(x[1]))
-    t1    <- x[2]; w <- x[3]; k <- x[4]; icc10 <- x[5]
-    cb <- icc_to_sigma_beta(icc10, ANT_0)
+    seed <- as.integer(round(x[1]))
+    idx  <- 2   # next free slot in x[], after seed
+    # T1/W/k: each independently fit, or pinned to ASM's Raster550 fit
+    # (fixed_t1/w/k) — see the FIT_T1/FIT_W/FIT_K comment in R/abc_common.R.
+    # Order must match the prior list below (T1, W, k).
+    t1 <- if (fit_t1) { v <- x[idx]; idx <- idx + 1; v } else fixed_t1
+    w  <- if (fit_w)  { v <- x[idx]; idx <- idx + 1; v } else fixed_w
+    k  <- if (fit_k)  { v <- x[idx]; idx <- idx + 1; v } else fixed_k
+    if (fit_icc) {
+      icc10 <- x[idx]; idx <- idx + 1
+      cb <- icc_to_sigma_beta(icc10, ANT_0)
+    } else {
+      cb <- list(sigma_group = fixed_sigma_group, beta_0 = fixed_beta_0)
+    }
+    # ant_loss/p_mda/ster_to_kill: fit value if this run fits it, else the
+    # fixed fallback baked into this closure — always a real number so
+    # model/main.cpp's CLI positions stay aligned regardless of which of the
+    # three is actually being fit (see FIXED_*/run_model() comments in
+    # R/abc_common.R).
+    ant_loss     <- if (fit_ant_loss) { v <- x[idx]; idx <- idx + 1; v } else fixed_ant_loss
+    p_mda        <- if (fit_p_mda)    { v <- x[idx]; idx <- idx + 1; v } else fixed_p_mda
+    ster_to_kill <- if (fit_ster_to_kill) { v <- x[idx]; idx <- idx + 1; v } else fixed_ster_to_kill
+    mda_effect   <- if (fit_mda_effect)   { v <- x[idx]; idx <- idx + 1; v } else fixed_mda_effect
 
     id <- sprintf("%s_s%d", suffix, seed)
-    run_model(id, t1, theta2, k, w, cb$sigma_group, cb$beta_0)
+    stderr_lines <- run_model(id, t1, theta2, k, w, cb$sigma_group, cb$beta_0,
+                               ant_loss, p_mda, ster_to_kill, mda_effect)
 
     out_file <- file.path(output_dir, id)
     if (!file.exists(out_file)) {
-      # Model failed to produce output (rare). ABC_sequential needs a numeric
-      # vector back from every call, so return something far from any
-      # plausible target rather than NA — the particle is then naturally
-      # rejected by the distance filter instead of crashing the sampler.
+      # Model failed to produce output — most often model/sim.cpp's seeding
+      # loop hit MAX_SEED_ATTEMPTS (100) because this particle's parameters
+      # can't reach country.json's seeding target at all (e.g. mismatched
+      # fixed clustering params). Surface the real error rather than silently
+      # rejecting — return something far from any target so the particle is
+      # naturally rejected rather than NA crashing the sampler.
+      detail <- if (length(stderr_lines) > 0) paste(stderr_lines, collapse = " | ") else "no stderr captured"
+      warning(sprintf("Particle %s produced no output (T1=%.4g W=%.4g k=%.4g): %s", id, t1, w, k, detail))
       return(rep(1e6, length(fit_stats)))
     }
     stats <- parse_output(out_file)
     file.remove(out_file)
+
+    # A file that exists but failed to parse (e.g. corrupted/headerless from
+    # a rare write race under heavy parallel load) comes back from
+    # parse_output() as all-NA rows — treat it the same as the missing-file
+    # case above rather than letting NA reach ABC_sequential(), which has no
+    # NA handling either.
+    if (all(is.na(stats$ANT)) || all(is.na(stats$MF))) {
+      warning(sprintf("Particle %s produced unparseable output (T1=%.4g W=%.4g k=%.4g)", id, t1, w, k))
+      return(rep(1e6, length(fit_stats)))
+    }
 
     icc_vals <- stats$ICC
     icc_vals[is.na(icc_vals)] <- 0  # occurs when MF prevalence is really low
     result <- c(ANT = mean(stats$ANT), MF = mean(stats$MF), ICC = mean(icc_vals))
     as.numeric(result[fit_stats])
   }
-}
-
-# ── Helper: write ABC-GLM output files ─────────────────────────────────────────
-# Writes the minimum needed to reload results (abc_fit.rds + posterior draws +
-# TranParams.csv) plus key diagnostic PNGs.
-write_abc_glm_files <- function(abc_fit, out_dir, label, prior,
-                                 particles, accepted, l1_dist, obs_vec) {
-  # ── Reload essentials ────────────────────────────────────────────────────────
-  write_rds(abc_fit, file.path(out_dir, "abc_fit.rds"))
-
-  adj <- as.data.frame(abc_fit$adj.values)
-  wts <- abc_fit$weights / sum(abc_fit$weights)
-  idx  <- sample(nrow(adj), N_POSTERIOR, replace = TRUE, prob = wts)
-  post <- adj[idx, ]
-  colnames(post) <- c("T1", "W", "k", "ICC10")
-
-  theta2_val <- THETA2_VALS[THETA2_LABELS == label]
-  write_csv(tibble(
-    Theta_1   = median(post$T1),
-    Theta_2   = theta2_val,
-    Agg       = median(post$k),
-    WorktoNot = median(post$W),
-    ICC10 = median(post$ICC10) # isn't actually needed because of clustering_params.csv
-  ), file.path(out_dir, "tran_params.csv"))
-
-  # Fitted clustering params — convert the posterior median ICC10 back into
-  # (sigma_group, beta_0) so a production (non-ABC) run can use it directly.
-  # The GLM local-linear adjustment (method="loclinear") doesn't respect
-  # parameter bounds — with few accepted particles it can push the adjusted
-  # median outside (0, 1), where sigma_group = sqrt(icc/(1-icc) * pi^2/3) and
-  # the beta_0 root-find blow up (observed directly while testing this).
-  # Clamp defensively rather than crash.
-  icc10_median <- median(post$ICC10)
-  if (icc10_median <= 0 || icc10_median >= 1) {
-    warning(sprintf(
-      "Posterior median ICC10 (%.4f) is outside (0, 1) — GLM adjustment likely extrapolated past valid bounds (check accepted-particle count). Clamping to fit.",
-      icc10_median
-    ))
-    icc10_median <- min(max(icc10_median, 0.001), 0.999)
-  }
-  fitted_cluster <- icc_to_sigma_beta(icc10_median, ANT_0)
-  write_csv(tibble(
-    sigma_group = fitted_cluster$sigma_group,
-    beta_0      = fitted_cluster$beta_0
-  ), file.path(out_dir, "clustering_params.csv"))
-
-  # ── Diagnostic PNGs ──────────────────────────────────────────────────────────
-  save_png <- function(p, name, w = 10, h = 6) {
-    ggsave(file.path(out_dir, name), p, width = w, height = h, dpi = 150)
-  }
-
-  # Inter-run vs overall variation
-  variation_dat <- particles |>
-    pivot_longer(c(ANT, MF, ICC), names_to = "stat", values_to = "value")
-
-  noise_labels <- variation_dat |>
-    group_by(stat) |>
-    mutate(total_sd = sd(value, na.rm = TRUE)) |>
-    group_by(stat, Sim) |>
-    summarise(within_var = var(value, na.rm = TRUE), total_sd = first(total_sd),
-              .groups = "drop") |>
-    group_by(stat) |>
-    summarise(
-      noise_frac = sqrt(mean(within_var, na.rm = TRUE)) / first(total_sd),
-      .groups = "drop"
-    ) |>
-    mutate(label = sprintf("%s (noise: %.0f%%)", stat, noise_frac * 100)) |>
-    dplyr::select(stat, label) |>
-    deframe()
-
-  var_plot <- ggplot(variation_dat, aes(x = Sim, y = value, color = factor(Sim))) +
-    geom_point(alpha = 0.5, size = 0.8) +
-    facet_wrap(~stat, scales = "free_y", ncol = 1,
-               labeller = as_labeller(noise_labels)) +
-    labs(x = "Particle", y = NULL) +
-    guides(color = "none") +
-    theme_minimal()
-
-  save_png(
-    var_plot,
-    "variation.png", h = 10
-  )
-
-  # L1 distance histogram with acceptance cutoff
-  save_png(
-    ggplot(tibble(l1 = l1_dist), aes(x = l1)) +
-      geom_histogram(bins = 40, fill = "steelblue", color = "white") +
-      geom_vline(xintercept = quantile(l1_dist, ABC_TOL),
-                 color = "red", linetype = "dashed", linewidth = 1) +
-      annotate("text", x = quantile(l1_dist, ABC_TOL), y = Inf,
-               label = sprintf("%.0f%% cutoff", ABC_TOL * 100),
-               hjust = -0.1, vjust = 2, color = "red") +
-      labs(title = "L1 distance distribution",
-           x = "L1 distance to observed", y = "Count") +
-      theme_minimal(),
-    "l1_distances.png"
-  )
-
-  # All particles vs accepted vs observed (two facets: MF and ICC on y-axis)
-  obs_labels <- c(MF = "MF prevalence 2016 (%)", ICC = "ICC")
-  particle_long <- bind_rows(
-    particles |> mutate(y = MF,  facet = "MF"),
-    particles |> mutate(y = ICC, facet = "ICC")
-  )
-  accepted_long <- bind_rows(
-    accepted  |> mutate(y = MF,  facet = "MF"),
-    accepted  |> mutate(y = ICC, facet = "ICC")
-  )
-  obs_long <- tibble(
-    x     = c(obs_vec[1], obs_vec[1]),
-    y     = c(obs_vec[2], obs_vec[3]),
-    facet = c("MF", "ICC")
-  )
-  save_png(
-    ggplot() +
-      geom_point(data = particle_long, aes(ANT, y),
-                 color = "grey70", alpha = 0.4, size = 1) +
-      geom_point(data = accepted_long, aes(ANT, y),
-                 color = "steelblue", alpha = 0.6, size = 1.5) +
-      geom_point(data = obs_long, aes(x, y),
-                 color = "red", shape = 8, size = 4, stroke = 1.5) +
-      facet_wrap(~facet, scales = "free_y",
-                 labeller = as_labeller(obs_labels)) +
-      labs(title = "All particles (grey) vs accepted (blue) vs observed (red)",
-           x = "Antigen prevalence 2016 (%)") +
-      theme_minimal() +
-      theme(axis.title.y = element_blank()),
-    "particles.png", w = 14
-  )
-
-  # Prior vs posterior (regression-adjusted)
-  adj_df <- as.data.frame(abc_fit$adj.values) |> setNames(c("T1", "W", "k", "ICC10"))
-  save_png(
-    bind_rows(
-      prior  |> mutate(type = "Prior"),
-      adj_df |> mutate(type = "Posterior")
-    ) |>
-      pivot_longer(c(T1, W, k, ICC10), names_to = "param", values_to = "value") |>
-      ggplot(aes(x = value, color = type, fill = type)) +
-      geom_density(alpha = 0.2) +
-      facet_wrap(~param, scales = "free") +
-      scale_color_manual(values = c("Prior" = "grey50", "Posterior" = "firebrick")) +
-      scale_fill_manual(values  = c("Prior" = "grey50", "Posterior" = "firebrick")) +
-      labs(title = "Prior vs posterior (regression-adjusted)",
-           x = "Value", y = "Density", color = NULL, fill = NULL) +
-      theme_minimal(),
-    "posterior.png", w = 12, h = 5
-  )
 }
 
 # ── Main: loop over theta2 values ─────────────────────────────────────────────
@@ -446,45 +210,52 @@ for (i in seq_along(THETA2_VALS)) {
   csv_path <- file.path(out_theta, csv_name)
   if (file.exists(csv_path)) file.remove(csv_path)  # start fresh each run
 
-  # Warm-up: pre-build the .init population cache so parallel workers don't race to
-  # create it once ABC_sequential() starts dispatching to its cluster. K_MIN can be 0,
-  # which causes bite_gamma(0, Inf) to hang on agent births — clamp to K_MIN_EFF.
-  # Clustering params don't affect population construction, so any valid value works
-  # here — use the midpoint of the ICC10 prior. Population is independent of
-  # (T1, k, W, ICC10), so this only needs to happen once per theta2.
+  # Warm-up: pre-build the .init population cache so workers don't race to
+  # create it once ABC_sequential() starts.
   message("  Warm-up run to build population cache...")
-  warmup_cluster <- icc_to_sigma_beta((ICC10_MIN + ICC10_MAX) / 2, ANT_0)
+  warmup_cluster <- compute_cluster_params(if (FIT_ICC) (ICC10_MIN + ICC10_MAX) / 2 else NA_real_)
+  warmup_t1 <- if (FIT_T1) max(T1_MIN, 1e-4) else FIXED_T1
+  warmup_k  <- if (FIT_K) K_MIN_EFF else FIXED_K
+  warmup_w  <- if (FIT_W) max(W_MIN, 1e-4) else FIXED_W
   t_warmup_start <- Sys.time()
-  { # same body as build_model()'s run_model(), run once from the top level
-    old_wd <- setwd(model_dir)
-    unlink(file.path(output_dir, "warmup"))
-    system2("./main", args = c("warmup", N_REPS, max(T1_MIN, 1e-4), theta2, K_MIN_EFF,
-                                max(W_MIN, 1e-4), warmup_cluster$sigma_group, warmup_cluster$beta_0),
-            stdout = FALSE, stderr = FALSE)
-    setwd(old_wd)
-  }
+  run_model("warmup", warmup_t1, theta2, warmup_k, warmup_w,
+            warmup_cluster$sigma_group, warmup_cluster$beta_0)
   t_warmup_end <- Sys.time()
   suppressWarnings(file.remove(file.path(output_dir, "warmup")))
   warmup_sec <- as.numeric(difftime(t_warmup_end, t_warmup_start, units = "secs"))
 
   fit_stats <- if (FIT_ICC) c("ANT", "MF", "ICC") else c("ANT", "MF")
-  obs_fit   <- if (FIT_ICC) c(OBS_ANT_2016, OBS_MF_2016, OBS_ICC_2016) else
-               c(OBS_ANT_2016, OBS_MF_2016)
-  obs_vec   <- c(OBS_ANT_2016, OBS_MF_2016, OBS_ICC_2016)  # always 3-element for visualisation
+  obs_fit   <- if (FIT_ICC) c(OBS_ANT, OBS_MF, OBS_ICC) else
+               c(OBS_ANT, OBS_MF)
+  obs_vec   <- c(OBS_ANT, OBS_MF, OBS_ICC)  # always 3-element for visualisation; ICC is NA when not fit
 
   # ── Sequential ABC ────────────────────────────────────────────────────────────
-  prior <- list(
-    c("unif", T1_MIN, T1_MAX),
-    c("unif", W_MIN,  W_MAX),
-    c("unif", K_MIN_EFF, K_MAX),
-    c("unif", ICC10_MIN, ICC10_MAX)
+  prior <- c(
+    if (FIT_T1) list(c("unif", T1_MIN, T1_MAX)) else NULL,
+    if (FIT_W)  list(c("unif", W_MIN,  W_MAX)) else NULL,
+    if (FIT_K)  list(c("unif", K_MIN_EFF, K_MAX)) else NULL,
+    if (FIT_ICC) list(c("unif", ICC10_MIN, ICC10_MAX)) else NULL,
+    if (FIT_ANT_LOSS) list(c("unif", ANT_LOSS_MIN, ANT_LOSS_MAX)) else NULL,
+    if (FIT_P_MDA) list(c("unif", P_MDA_MIN, P_MDA_MAX)) else NULL,
+    if (FIT_STER_TO_KILL) list(c("unif", STER_TO_KILL_MIN, STER_TO_KILL_MAX)) else NULL,
+    if (FIT_MDA_EFFECT) list(c("unif", MDA_EFFECT_MIN, MDA_EFFECT_MAX)) else NULL
   )
-  model <- build_model(model_dir, output_dir, theta2, suffix, N_REPS, ANT_0, fit_stats)
+  model <- build_model(model_dir, output_dir, theta2, suffix, N_REPS, ANT_0, fit_stats,
+                        FIT_YEAR, FIT_ICC, FIXED_SIGMA_GROUP, FIXED_BETA_0,
+                        FIT_T1, FIXED_T1, FIT_W, FIXED_W, FIT_K, FIXED_K,
+                        FIT_ANT_LOSS, FIXED_ANT_LOSS,
+                        FIT_P_MDA, FIXED_P_MDA,
+                        FIT_STER_TO_KILL, FIXED_STER_TO_KILL,
+                        FIT_MDA_EFFECT, FIXED_MDA_EFFECT)
 
   nb_simul_arg <- ceiling(N_PARTICLES / SMC_ALPHA)
   message(sprintf("  Running ABC_sequential (target %d particles/step, alpha = %.2f, p_acc_min = %.2f, %d workers)...",
                   N_PARTICLES, SMC_ALPHA, SMC_P_ACC_MIN, N_WORKERS))
   t_smc_start <- Sys.time()
+  # verbose=TRUE writes EasyABC's per-step diagnostic files into the current
+  # working directory at call time — setwd() into out_theta first so they
+  # land there instead of littering the project root.
+  old_wd <- setwd(out_theta)
   smc <- ABC_sequential(
     method              = "Lenormand",
     model               = model,
@@ -495,8 +266,9 @@ for (i in seq_along(THETA2_VALS)) {
     n_cluster           = N_WORKERS,
     alpha               = SMC_ALPHA,
     p_acc_min           = SMC_P_ACC_MIN,
-    verbose = TRUE
+    verbose             = TRUE
   )
+  setwd(old_wd)
   t_smc_end <- Sys.time()
   smc_sec <- as.numeric(difftime(t_smc_end, t_smc_start, units = "secs"))
   message(sprintf("  Wall time: %.0fs | %d total simulations | final tolerance (epsilon) = %.4f",
@@ -524,19 +296,16 @@ for (i in seq_along(THETA2_VALS)) {
   )
 
   # ── Build the accepted-particle tibble from EasyABC's final population ────────
-  # ABC_sequential()'s final population *is* its accepted set (by construction —
-  # every returned particle already passed the algorithm's own final-step
-  # tolerance), unlike abc_raster.R's separate "draw then reject" split. So the
-  # "all particles" and "accepted" views below are the same population; passed
-  # to write_abc_glm_files() twice for its grey-vs-blue plot to keep that
-  # function unchanged.
-  colnames(smc$param) <- c("T1", "W", "k", "ICC10")
+  # The final population already passed the algorithm's own tolerance, so
+  # (unlike abc_raster.R's separate draw/reject split) "all particles" and
+  # "accepted" below are the same set — passed twice to keep
+  # write_abc_glm_files() unchanged.
+  colnames(smc$param) <- PARAM_NAMES
   colnames(smc$stats)  <- fit_stats
 
   complete <- as_tibble(smc$param) |>
     bind_cols(as_tibble(smc$stats)) |>
     mutate(Sim = row_number(), weight = smc$weights)
-  if (!FIT_ICC) complete$ICC <- NA_real_  # write_abc_glm_files always plots ICC
 
   ss_mat  <- as.matrix(dplyr::select(complete, all_of(fit_stats)))
   l1_dist <- rowSums(abs(sweep(ss_mat, 2, obs_fit)))
@@ -544,28 +313,31 @@ for (i in seq_along(THETA2_VALS)) {
   message(sprintf("  %d particles in final population", nrow(complete)))
 
   # ── GLM post-sampling adjustment ───────────────────────────────────────────────
-  # Resample the final weighted population down to an unweighted particle set —
-  # particles that carried more SMC weight appear more often — so it drops
-  # straight into the same local-linear regression-adjustment step
-  # abc_raster.R uses.
+  # Resample the weighted population down to an unweighted set (particles
+  # with more SMC weight appear more often) so it drops into the same
+  # local-linear regression-adjustment step abc_raster.R uses.
   resample_idx <- sample(nrow(complete), nrow(complete), replace = TRUE, prob = complete$weight)
   accepted     <- complete[resample_idx, ]
 
   fit <- abc(
     target  = obs_fit,
-    param   = dplyr::select(accepted, T1, W, k, ICC10),
+    param   = dplyr::select(accepted, all_of(PARAM_NAMES)),
     sumstat = dplyr::select(accepted, all_of(fit_stats)),
     tol     = 1.0,
     method  = "loclinear",
     transf  = "none"
   )
 
-  prior_draws <- tibble(
-    T1    = runif(N_POSTERIOR, T1_MIN, T1_MAX),
-    W     = runif(N_POSTERIOR, W_MIN,  W_MAX),
-    k     = runif(N_POSTERIOR, K_MIN,  K_MAX),
-    ICC10 = runif(N_POSTERIOR, ICC10_MIN, ICC10_MAX)
-  )
+  prior_draws <- tibble(.rows = N_POSTERIOR)
+  if (FIT_T1) prior_draws$T1 <- runif(N_POSTERIOR, T1_MIN, T1_MAX)
+  if (FIT_W)  prior_draws$W  <- runif(N_POSTERIOR, W_MIN,  W_MAX)
+  if (FIT_K)  prior_draws$k  <- runif(N_POSTERIOR, K_MIN,  K_MAX)
+  if (FIT_ICC) prior_draws$ICC10 <- runif(N_POSTERIOR, ICC10_MIN, ICC10_MAX)
+  if (FIT_ANT_LOSS) prior_draws$AntLoss <- runif(N_POSTERIOR, ANT_LOSS_MIN, ANT_LOSS_MAX)
+  if (FIT_P_MDA) prior_draws$PMda <- runif(N_POSTERIOR, P_MDA_MIN, P_MDA_MAX)
+  if (FIT_STER_TO_KILL) prior_draws$SterToKill <- runif(N_POSTERIOR, STER_TO_KILL_MIN, STER_TO_KILL_MAX)
+  if (FIT_MDA_EFFECT) prior_draws$MdaEffect <- runif(N_POSTERIOR, MDA_EFFECT_MIN, MDA_EFFECT_MAX)
+
   write_csv(complete, csv_path)
   write_abc_glm_files(fit, out_theta, label, prior_draws,
                       complete, accepted, l1_dist, obs_vec)

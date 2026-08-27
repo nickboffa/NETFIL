@@ -16,6 +16,7 @@ void Region::sim(int year, MDAEvent evt){
         init_mf_prev_obs  = 0;
         init_ratio_obs    = 0;
         int attempts = 0;
+        const int MAX_SEED_ATTEMPTS = 100;
         cout << "Seeding..." << endl;
         // Keep seeding until prevalence/ratio within bounds
         while ((init_ant_prev_obs < init_ant_prev_min || init_ant_prev_obs > init_ant_prev_max) ||
@@ -23,6 +24,14 @@ void Region::sim(int year, MDAEvent evt){
                    ? (init_mf_prev_obs  < init_mf_prev_min       || init_mf_prev_obs  > init_mf_prev_max)
                    : (init_ratio_obs    < init_mf_ant_ratio_min   || init_ratio_obs    > init_mf_ant_ratio_max))) {
             ++attempts;
+            if (attempts > MAX_SEED_ATTEMPTS) {
+                cerr << "ERROR: seeding failed to reach target prevalence/ratio bounds after "
+                     << MAX_SEED_ATTEMPTS << " attempts (target: ANT " << init_ant_prev*100
+                     << "%, MF " << init_mf_prev*100 << "%). Target is likely unreachable for "
+                     << "the current theta1/k/worktonot/sigma_group/beta_0 — check those against "
+                     << "country.json's seeding bounds." << endl;
+                exit(1);
+            }
             if (attempts % 10 == 0)
                 cout << "  attempt " << attempts << " (ANT " << init_ant_prev_obs*100 << "%, MF " << init_mf_prev_obs*100 << "%)" << endl;
             seed_lf();
@@ -72,7 +81,12 @@ void Region::sim(int year, MDAEvent evt){
             if ((day % 91 == 0) && (day != 364)){
                 output_epidemics(year, day, evt);
             }
-                
+
+            // Skip the rest of the final simulated year once end_day is reached —
+            // it contributes nothing beyond this point since no later day's
+            // output is used once the run ends here.
+            if (year == sim_years - 1 && day >= end_day) break;
+
         }
     }
 }

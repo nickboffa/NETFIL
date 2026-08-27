@@ -1,0 +1,2 @@
+scale,theta2,method,n_particles_final,alpha,p_acc_min,n_reps,n_workers,n_sim_total,epsilon,warmup_sec,wall_sec,package_computime_sec,started_at,finished_at
+Synth550_v1,1,Lenormand (EasyABC::ABC_sequential),50,0.5,0.05,2,6,1100,0.019256704867999033,7,2015.4,2015.4,2026-08-27 12:15:24,2026-08-27 12:48:59

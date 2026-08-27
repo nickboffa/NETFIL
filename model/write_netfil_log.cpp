@@ -86,11 +86,19 @@ void write_netfil(
 
     write_section(netfil, "Drug parameters");
 
-    for (const auto& [name, drug] : DRUG_DICT) {
+    for (const auto& [name, drug] : FIXED_DRUG_DICT) {
         write_value(netfil, "Drug", name);
         drug.print_drugs(netfil);
         netfil << endl;
     }
+    // DA/IDA aren't in FIXED_DRUG_DICT — their kill/sterilise split depends
+    // on rgn->ster_to_kill (network.h), so compute them with this run's
+    // actual value rather than logging a fixed placeholder.
+    write_value(netfil, "Drug", "DA/IDA");
+    write_value(netfil, "ster_to_kill", rgn->ster_to_kill);
+    write_value(netfil, "mda_total_effect", rgn->mda_total_effect);
+    lookup_drug("DA", rgn->ster_to_kill, rgn->mda_total_effect).print_drugs(netfil);
+    netfil << endl;
 
     write_section(netfil, "Year parameters");
     write_value(netfil, "Starting year of simulation", rgn->init_year);
